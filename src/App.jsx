@@ -1134,9 +1134,6 @@ function App() {
                         onClick={() => setIsMobileMenuOpen(false)}
                     />
                 )}
-                <button className="profile" type="button">
-                    👤 Học sinh
-                </button>
             </header>
             <main>{pages[view]}</main>
             <footer className="footer">
