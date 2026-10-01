@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ChatMessage from "./components/chat/ChatMessage.jsx";
 import {
+    AI_IMAGE_ALLOWED_TYPES,
+    AI_IMAGE_MAX_BYTES,
+} from "./services/aiImage.js";
+import {
     chatWithAI,
     getContent,
 } from "./services/api.js";
@@ -20,7 +24,7 @@ const LEGACY_AI_CHAT_STORAGE_KEY = "mathhistory-ai-chat-v1";
 const initialAiMessages = [
     {
         role: "bot",
-        text: "Xin chào! Mình có thể giúp bạn giải thích một chủ đề lịch sử Toán, tóm tắt bài học hoặc tạo câu hỏi ôn tập.",
+        text: "Xin chào! Bạn có thể hỏi về Lịch sử Toán học hoặc gửi bài tập. Mặc định mình chỉ gợi ý; nếu đã làm xong, bật “Chấm bài đã làm” để mình góp ý và đưa lời giải tham khảo.",
     },
 ];
 
@@ -349,7 +353,16 @@ function AIView() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isCheckWorkMode, setIsCheckWorkMode] = useState(false);
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [cameraFacingMode, setCameraFacingMode] = useState("environment");
+    const [isCameraLoading, setIsCameraLoading] = useState(false);
+    const [cameraError, setCameraError] = useState("");
+    const imageInputRef = useRef(null);
     const messagesContainerRef = useRef(null);
+    const cameraVideoRef = useRef(null);
+    const cameraStreamRef = useRef(null);
     const activeConversation =
         chatState.conversations.find(
             (conversation) => conversation.id === chatState.activeId,
@@ -364,12 +377,80 @@ function AIView() {
         }
     }, [activeConversation.id, messages, loading]);
 
+    // Chỉ bật camera khi hộp chụp ảnh đang mở; đổi camera sẽ dừng stream cũ trước.
+    useEffect(() => {
+        if (!isCameraOpen) return undefined;
+
+        let cancelled = false;
+        let activeStream;
+        setIsCameraLoading(true);
+        setCameraError("");
+
+        async function startCamera() {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                setCameraError(
+                    "Trình duyệt không hỗ trợ camera hoặc trang chưa dùng HTTPS.",
+                );
+                setIsCameraLoading(false);
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: {
+                        facingMode: { ideal: cameraFacingMode },
+                        width: { ideal: 1600 },
+                        height: { ideal: 1200 },
+                    },
+                });
+                if (cancelled) {
+                    stream.getTracks().forEach((track) => track.stop());
+                    return;
+                }
+
+                activeStream = stream;
+                cameraStreamRef.current = stream;
+                if (cameraVideoRef.current) {
+                    cameraVideoRef.current.srcObject = stream;
+                    await cameraVideoRef.current.play();
+                }
+            } catch (cameraStartError) {
+                if (!cancelled) {
+                    console.error("Không thể mở camera:", cameraStartError);
+                    setCameraError(
+                        cameraStartError.name === "NotAllowedError"
+                            ? "Bạn chưa cấp quyền dùng camera cho website."
+                            : "Không thể mở camera. Hãy kiểm tra camera đang hoạt động và thử lại.",
+                    );
+                }
+            } finally {
+                if (!cancelled) setIsCameraLoading(false);
+            }
+        }
+
+        startCamera();
+        return () => {
+            cancelled = true;
+            activeStream?.getTracks().forEach((track) => track.stop());
+            if (cameraStreamRef.current === activeStream) {
+                cameraStreamRef.current = null;
+            }
+            if (cameraVideoRef.current) {
+                cameraVideoRef.current.srcObject = null;
+            }
+        };
+    }, [isCameraOpen, cameraFacingMode]);
+
     // Lưu bền vững trên trình duyệt; xóa khóa session cũ sau khi chuyển dữ liệu.
     useEffect(() => {
         try {
             localStorage.setItem(
                 AI_CHAT_STORAGE_KEY,
-                JSON.stringify(chatState),
+                // Không lưu ảnh base64 vào localStorage; ảnh lớn, nên lưu tên và nội dung chat thôi.
+                JSON.stringify(chatState, (key, value) =>
+                    key === "imageData" ? undefined : value,
+                ),
             );
             sessionStorage.removeItem(AI_CHAT_STORAGE_KEY);
             sessionStorage.removeItem(LEGACY_AI_CHAT_STORAGE_KEY);
@@ -409,6 +490,8 @@ function AIView() {
         });
         setError("");
         setInput("");
+        setSelectedImage(null);
+        setIsCameraOpen(false);
     }
 
     // Xóa toàn bộ cuộc chat sau khi người dùng xác nhận.
@@ -423,6 +506,8 @@ function AIView() {
         });
         setError("");
         setInput("");
+        setSelectedImage(null);
+        setIsCameraOpen(false);
     }
 
     // Xóa riêng một cuộc; nếu đó là cuộc đang mở thì chuyển sang cuộc còn lại.
@@ -449,6 +534,8 @@ function AIView() {
         });
         setError("");
         setInput("");
+        setSelectedImage(null);
+        setIsCameraOpen(false);
     }
 
     // Cập nhật một cuộc theo ID để phản hồi API luôn gắn đúng hội thoại ban đầu.
@@ -473,24 +560,127 @@ function AIView() {
         });
     }
 
-    // Gửi câu hỏi lên backend; chỉ giữ câu hỏi trong lịch sử khi gọi API thành công.
+    // Kiểm tra và đọc ảnh đã chọn hoặc vừa chụp theo cùng một luồng.
+    async function useImageFile(file) {
+        if (!AI_IMAGE_ALLOWED_TYPES.includes(file.type)) {
+            throw new Error("Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP.");
+        }
+        if (file.size > AI_IMAGE_MAX_BYTES) {
+            throw new Error("Ảnh cần có dung lượng tối đa 3 MB.");
+        }
+
+        const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () =>
+                typeof reader.result === "string"
+                    ? resolve(reader.result)
+                    : reject(new Error("Không thể đọc ảnh. Vui lòng thử lại."));
+            reader.onerror = () =>
+                reject(new Error("Không thể đọc ảnh. Vui lòng thử lại."));
+            reader.readAsDataURL(file);
+        });
+        const base64 = dataUrl.split(",")[1];
+        if (!base64) {
+            throw new Error("Ảnh không đúng định dạng. Vui lòng chọn ảnh khác.");
+        }
+
+        setSelectedImage({
+            name: file.name,
+            mimeType: file.type,
+            data: base64,
+            preview: dataUrl,
+        });
+        setError("");
+    }
+
+    // Đọc lựa chọn trong máy; xóa value để lần sau chọn lại đúng file đó vẫn phát change.
+    async function handleImageSelection(event) {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+        try {
+            await useImageFile(file);
+        } catch (imageError) {
+            setError(imageError.message);
+        }
+    }
+
+    // Chụp khung hình hiện tại thành JPEG rồi dùng cùng quy trình kiểm tra như ảnh tải lên.
+    function captureCameraImage() {
+        const video = cameraVideoRef.current;
+        if (!video?.videoWidth || !video.videoHeight) {
+            setCameraError("Camera chưa sẵn sàng. Vui lòng đợi rồi chụp lại.");
+            return;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d")?.drawImage(video, 0, 0);
+        canvas.toBlob(
+            async (blob) => {
+                if (!blob) {
+                    setCameraError("Không thể tạo ảnh. Vui lòng chụp lại.");
+                    return;
+                }
+                const imageFile = new File(
+                    [blob],
+                    `anh-bai-tap-${Date.now()}.jpg`,
+                    { type: "image/jpeg" },
+                );
+                try {
+                    await useImageFile(imageFile);
+                    setIsCameraOpen(false);
+                } catch (imageError) {
+                    setCameraError(imageError.message);
+                }
+            },
+            "image/jpeg",
+            0.88,
+        );
+    }
+
+    // Gửi văn bản và/hoặc ảnh lên backend; lịch sử lưu tên ảnh, không lưu dữ liệu ảnh.
     async function ask() {
         const v = input.trim();
-        if (!v || loading) return;
+        if ((!v && !selectedImage) || loading) return;
         setError("");
         const messageId = `${Date.now()}-${Math.random()}`;
         const conversationId = activeConversation.id;
+        const messageText =
+            v ||
+            (isCheckWorkMode
+                ? "Hãy chấm bài làm và đáp án của em trong ảnh. Nếu ảnh chỉ có đề bài, hãy yêu cầu em gửi phần đã làm."
+                : "Hãy gợi ý phương pháp giải bài tập trong ảnh, không đưa đáp số.");
+        const imageForRequest = selectedImage;
         // Gắn ID tạm cho câu hỏi để có thể gỡ riêng nếu request thất bại.
         updateConversation(conversationId, (current) => [
             ...current,
-            { role: "me", text: v, id: messageId },
+            {
+                role: "me",
+                text: messageText,
+                id: messageId,
+                ...(imageForRequest && {
+                    imageName: imageForRequest.name,
+                    imageData: imageForRequest.preview,
+                }),
+            },
         ]);
         setLoading(true);
         try {
-            const data = await chatWithAI(v);
+            const data = await chatWithAI(
+                v,
+                imageForRequest
+                    ? {
+                          mimeType: imageForRequest.mimeType,
+                          data: imageForRequest.data,
+                      }
+                    : null,
+                isCheckWorkMode,
+            );
             if (!data.answer)
                 throw new Error("Dịch vụ AI không trả về nội dung.");
             setInput("");
+            setSelectedImage(null);
             updateConversation(conversationId, (current) => [
                 ...current,
                 {
@@ -508,7 +698,7 @@ function AIView() {
             setLoading(false);
         }
     }
-    // Chọn hội thoại đang hiển thị; sidebar và vùng chat cùng đọc state này.
+    // Chọn hội thoại đang hiển thị và bỏ ảnh đang soạn để tránh gửi nhầm sang chat khác.
     return (
         <section className="view active">
             <Header
@@ -559,6 +749,8 @@ function AIView() {
                                                 ...current,
                                                 activeId: conversation.id,
                                             }));
+                                            setSelectedImage(null);
+                                            setIsCameraOpen(false);
                                             setError("");
                                         }}
                                         disabled={loading}
@@ -641,22 +833,94 @@ function AIView() {
                             />
                         )}
                     </div>
+                    {selectedImage && (
+                        <div className="selectedImagePreview">
+                            <img
+                                src={selectedImage.preview}
+                                alt={`Ảnh đính kèm: ${selectedImage.name}`}
+                            />
+                            <span title={selectedImage.name}>
+                                {selectedImage.name}
+                            </span>
+                            <button
+                                className="removeImageButton"
+                                type="button"
+                                onClick={() => setSelectedImage(null)}
+                                disabled={loading}
+                                aria-label="Bỏ ảnh đính kèm"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    )}
                     <div className="chatbar">
+                        <button
+                            className={`checkWorkToggle${isCheckWorkMode ? " active" : ""}`}
+                            type="button"
+                            aria-pressed={isCheckWorkMode}
+                            onClick={() =>
+                                setIsCheckWorkMode((isEnabled) => !isEnabled)
+                            }
+                            disabled={loading}
+                        >
+                            {isCheckWorkMode
+                                ? "✓ Chấm bài đã làm: Bật"
+                                : "Chấm bài đã làm: Tắt"}
+                        </button>
                         <input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && ask()}
                             disabled={loading}
-                            placeholder="Hỏi về lịch sử Toán..."
+                            placeholder="Nhập câu hỏi hoặc gửi ảnh bài tập..."
                         />
+                        <input
+                            ref={imageInputRef}
+                            className="visuallyHidden"
+                            type="file"
+                            accept={AI_IMAGE_ALLOWED_TYPES.join(",")}
+                            onChange={handleImageSelection}
+                            disabled={loading}
+                            aria-label="Chọn ảnh bài tập"
+                        />
+                        <button
+                            className="secondary attachImageButton"
+                            type="button"
+                            onClick={() => {
+                                setCameraError("");
+                                setIsCameraOpen(true);
+                            }}
+                            disabled={loading}
+                            aria-label="Chụp ảnh bài tập"
+                            title="Mở camera để chụp ảnh bài tập"
+                        >
+                            📷 Chụp ảnh
+                        </button>
+                        <button
+                            className="secondary attachImageButton"
+                            type="button"
+                            onClick={() => imageInputRef.current?.click()}
+                            disabled={loading}
+                            aria-label="Chọn ảnh trong máy"
+                            title="Chọn ảnh JPEG, PNG hoặc WebP (tối đa 3 MB)"
+                        >
+                            🖼️ Chọn ảnh
+                        </button>
                         <button
                             className="primary"
                             onClick={ask}
-                            disabled={loading || !input.trim()}
+                            disabled={loading || (!input.trim() && !selectedImage)}
                         >
                             {loading ? "Đang gửi…" : "Gửi"}
                         </button>
                     </div>
+                    <p className="aiHintPolicy">
+                        {isCheckWorkMode
+                            ? "Chế độ chấm: AI sẽ nhận xét bài làm và đưa lời giải tham khảo để bạn đối chiếu."
+                            : "Chế độ gợi ý: AI chỉ hướng dẫn phương pháp, không đưa đáp số."}{" "}
+                        Nhận JPEG, PNG hoặc WebP tối đa 3 MB. Ảnh được chuyển
+                        đến AI để phân tích; lịch sử chỉ lưu tên ảnh.
+                    </p>
                     {error && (
                         <p className="error" role="alert">
                             {error}
@@ -664,12 +928,87 @@ function AIView() {
                     )}
                 </div>
             </div>
+            {isCameraOpen && (
+                <div
+                    className="cameraBackdrop"
+                    onClick={(event) => {
+                        if (event.target === event.currentTarget) {
+                            setIsCameraOpen(false);
+                        }
+                    }}
+                >
+                    <section
+                        className="cameraDialog"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="cameraDialogTitle"
+                    >
+                        <div className="cameraDialogHeader">
+                            <h2 id="cameraDialogTitle">Chụp ảnh bài tập</h2>
+                            <button
+                                className="removeImageButton"
+                                type="button"
+                                onClick={() => setIsCameraOpen(false)}
+                                aria-label="Đóng camera"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <video
+                            ref={cameraVideoRef}
+                            className="cameraVideo"
+                            autoPlay
+                            playsInline
+                            muted
+                        />
+                        {isCameraLoading && (
+                            <p className="muted">Đang mở camera…</p>
+                        )}
+                        {cameraError && (
+                            <p className="error" role="alert">
+                                {cameraError}
+                            </p>
+                        )}
+                        <div className="cameraControls">
+                            <button
+                                className="secondary"
+                                type="button"
+                                onClick={() =>
+                                    setCameraFacingMode((mode) =>
+                                        mode === "environment"
+                                            ? "user"
+                                            : "environment",
+                                    )
+                                }
+                                disabled={isCameraLoading}
+                            >
+                                {cameraFacingMode === "environment"
+                                    ? "↔ Đổi sang camera trước"
+                                    : "↔ Đổi sang camera sau"}
+                            </button>
+                            <button
+                                className="primary"
+                                type="button"
+                                onClick={captureCameraImage}
+                                disabled={isCameraLoading || Boolean(cameraError)}
+                            >
+                                Chụp ảnh
+                            </button>
+                        </div>
+                        <p className="cameraPermissionNote">
+                            Trình duyệt sẽ hỏi quyền dùng camera. Trên mạng,
+                            website cần HTTPS để mở camera.
+                        </p>
+                    </section>
+                </div>
+            )}
         </section>
     );
 }
 function App() {
     // view xác định tab hiện tại; selectedLesson chỉ có giá trị ở trang chi tiết bài.
     const [view, setView] = useState("home");
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [selectedLesson, setSelectedLesson] = useState(null);
     const [content, setContent] = useState(null);
     const [error, setError] = useState("");
@@ -679,6 +1018,15 @@ function App() {
         getContent()
             .then(setContent)
             .catch((err) => setError(err.message));
+    }, []);
+
+    // Cho phép đóng menu mobile bằng phím Escape.
+    useEffect(() => {
+        function closeMenuOnEscape(event) {
+            if (event.key === "Escape") setIsMobileMenuOpen(false);
+        }
+        window.addEventListener("keydown", closeMenuOnEscape);
+        return () => window.removeEventListener("keydown", closeMenuOnEscape);
     }, []);
     if (error)
         return (
@@ -742,11 +1090,31 @@ function App() {
                         MathHistory <span>AI</span>
                     </div>
                 </div>
-                <nav>
+                <button
+                    className="mobileMenuToggle"
+                    type="button"
+                    aria-label={isMobileMenuOpen ? "Đóng menu" : "Mở menu"}
+                    aria-expanded={isMobileMenuOpen}
+                    aria-controls="main-navigation"
+                    onClick={() =>
+                        setIsMobileMenuOpen((isOpen) => !isOpen)
+                    }
+                >
+                    <span />
+                    <span />
+                    <span />
+                </button>
+                <nav
+                    id="main-navigation"
+                    className={isMobileMenuOpen ? "mobileMenuOpen" : ""}
+                >
                     {navItems.map(([id, label]) => (
                         <button
                             key={id}
-                            onClick={() => setView(id)}
+                            onClick={() => {
+                                setView(id);
+                                setIsMobileMenuOpen(false);
+                            }}
                             className={
                                 view === id ||
                                 (view === "lesson" && id === "library")
@@ -758,14 +1126,22 @@ function App() {
                         </button>
                     ))}
                 </nav>
+                {isMobileMenuOpen && (
+                    <button
+                        className="mobileMenuBackdrop"
+                        type="button"
+                        aria-label="Đóng menu"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    />
+                )}
                 <button className="profile" type="button">
                     👤 Học sinh
                 </button>
             </header>
             <main>{pages[view]}</main>
             <footer className="footer">
-                MathHistory AI · Học liệu lịch sử Toán học được phục vụ từ API
-                backend.
+                <div>MathHistory AI · Học liệu lịch sử Toán học</div>
+                <small className="footerAuthor">by Lê Hồ Hoàng Huy</small>
             </footer>
         </div>
     );

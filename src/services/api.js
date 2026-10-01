@@ -35,10 +35,10 @@ export function submitQuiz(selectedOption) {
 }
 
 // Gửi câu hỏi đến API serverless hoặc Express; khóa AI không nằm trong frontend.
-export async function chatWithAI(message) {
+export async function chatWithAI(message, image = null, checkWork = false) {
     return request("/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, image, checkWork }),
     });
 }

@@ -18,7 +18,22 @@ export default function ChatMessage({ message }) {
                     {message.text}
                 </ReactMarkdown>
             ) : (
-                message.text
+                <>
+                    {message.imageData ? (
+                        <img
+                            className="chatImage"
+                            src={message.imageData}
+                            alt={`Ảnh bài tập: ${message.imageName || "đã gửi"}`}
+                        />
+                    ) : (
+                        message.imageName && (
+                            <div className="previousImageNotice">
+                                📷 Ảnh đã gửi: {message.imageName}
+                            </div>
+                        )
+                    )}
+                    {message.text}
+                </>
             )}
         </div>
     );

@@ -5,6 +5,7 @@ import { rateLimit } from "express-rate-limit";
 import { GoogleGenAI } from "@google/genai";
 import { lessons, quiz, timeline } from "../data/content.js";
 import { AI_SYSTEM_INSTRUCTION } from "./aiPrompt.js";
+import { validateAiImage } from "./aiImage.js";
 import {
     existsSync,
     mkdirSync,
@@ -60,7 +61,8 @@ function saveProgress(progress) {
 // Cấu hình middleware chung trước khi khai báo các route API.
 app.set("trust proxy", process.env.TRUST_PROXY === "1" ? 1 : false);
 app.use(cors({ origin: clientOrigins }));
-app.use(express.json({ limit: "16kb" }));
+// Request chat có thể chứa ảnh base64 3 MB; giới hạn body để chống payload quá lớn.
+app.use(express.json({ limit: "4.2mb" }));
 app.use(express.static(distDirectory));
 
 // Trả nội dung dùng chung của website; không gửi đáp án quiz xuống frontend.
@@ -153,21 +155,49 @@ app.post(
             typeof req.body?.message === "string"
                 ? req.body.message.trim()
                 : "";
-        if (!message)
-            return res.status(400).json({ error: "Vui lòng nhập câu hỏi." });
+        const image = req.body?.image ?? null;
+        const checkWork = req.body?.checkWork === true;
+        if (!message && !image)
+            return res
+                .status(400)
+                .json({ error: "Hãy nhập câu hỏi hoặc gửi ảnh bài tập." });
         if (message.length > 2000)
             return res
                 .status(400)
                 .json({ error: "Câu hỏi không được dài quá 2000 ký tự." });
+        const imageError = validateAiImage(image);
+        if (imageError)
+            return res.status(400).json({ error: imageError });
         if (!ai)
             return res
                 .status(503)
                 .json({ error: "AI chưa được cấu hình ở backend." });
 
         try {
+            const parts = [];
+            // Cờ riêng giúp phân biệt yêu cầu chấm bài với chế độ gợi ý mặc định.
+            parts.push({
+                text: checkWork
+                    ? "CHẾ ĐỘ CHẤM BÀI ĐÃ BẬT. Hãy chấm phần làm của học sinh, góp ý lỗi và trình bày lời giải mẫu để đối chiếu nếu dữ liệu đủ rõ."
+                    : "CHẾ ĐỘ GỢI Ý ĐANG BẬT. Không đưa đáp số cuối cùng hoặc lời giải hoàn chỉnh.",
+            });
+            if (message || image) {
+                parts.push({
+                    text:
+                        message ||
+                        (checkWork
+                            ? "Hãy chấm bài làm và đáp án học sinh gửi trong ảnh; nếu không thấy bài làm, hãy yêu cầu học sinh gửi bài đã làm."
+                            : "Phân tích bài tập trong ảnh và chỉ gợi ý phương pháp giải, không đưa đáp số."),
+                });
+            }
+            if (image) {
+                parts.push({
+                    inlineData: { mimeType: image.mimeType, data: image.data },
+                });
+            }
             const response = await ai.models.generateContent({
                 model: "gemini-3.5-flash-lite",
-                contents: message,
+                contents: [{ role: "user", parts }],
                 config: { systemInstruction: AI_SYSTEM_INSTRUCTION },
             });
             if (!response.text)

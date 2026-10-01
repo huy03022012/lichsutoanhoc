@@ -11,6 +11,7 @@ Website học tập tương tác về lịch sử Toán học, dùng React/Vite 
 - `src/services/server.js`: API Express khi chạy local hoặc Node server.
 - `api/`: Vercel Functions; Vercel dùng các handler này thay cho Express `app.listen`.
 - `src/services/aiPrompt.js` và `src/services/aiRateLimit.js`: giới hạn chủ đề AI và hạn mức gọi AI.
+- `src/services/aiImage.js`: loại ảnh, giới hạn dung lượng và kiểm tra payload gửi tới AI.
 - `index.html`: ngôn ngữ trang, metadata trình duyệt và điểm gắn React.
 - `.gitignore`: các file/mục không được đưa vào Git.
 - `vite.config.js`: máy chủ phát triển, proxy API và cấu hình preview.
@@ -20,6 +21,8 @@ Website học tập tương tác về lịch sử Toán học, dùng React/Vite 
 Khi sửa một tính năng, thường cần kiểm tra cả giao diện (`src/App.jsx`), kiểu dáng (`src/styles.css`) và API tương ứng. Các chú thích tiếng Việt trong mã giải thích luồng xử lý hoặc giới hạn triển khai; không phải dòng code nào cũng có chú thích vì các biểu thức đơn giản được giải thích rõ hơn qua tên biến/hàm.
 
 Lịch sử tối đa 10 cuộc trò chuyện được lưu bằng `localStorage` trên trình duyệt hiện tại, nên vẫn còn sau khi đóng rồi mở lại website. Dữ liệu không được gửi lên Vercel và không tự đồng bộ sang trình duyệt/thiết bị khác; người dùng có thể xóa từng cuộc hoặc xóa toàn bộ trong giao diện chat.
+
+Trên màn hình rộng, điều hướng nằm trên thanh đầu trang; trên điện thoại/tablet (màn hình rộng tối đa 850 px), dùng nút ba gạch để mở menu. Menu đóng khi chọn trang, chạm vùng bên ngoài hoặc nhấn Escape.
 
 `package.json`, `vercel.json` và `package-lock.json` là JSON; JSON chuẩn không cho phép comment. Vì vậy phần giải thích cấu hình nằm trong mục sơ đồ này; `package-lock.json` được npm tự sinh nên không nên chỉnh tay.
 
@@ -51,7 +54,7 @@ npm run preview
 ```
 
 ## AI backend
-Frontend gọi `POST /api/ai/chat`; AI dùng model `gemini-3.5-flash-lite` và chỉ hỗ trợ chủ đề Lịch sử Toán học.
+Frontend gọi `POST /api/ai/chat`; AI dùng model `gemini-3.5-flash-lite`, hỗ trợ Lịch sử Toán học và bài tập từ văn bản/ảnh. Mặc định AI chỉ đưa phương pháp, câu hỏi gợi mở và gợi ý, không đưa đáp số. Khi học sinh đã làm xong, bật nút `Chấm bài đã làm` để AI nhận xét đúng/sai, góp ý và trình bày lời giải mẫu để đối chiếu; nếu chưa gửi bài làm, AI sẽ hỏi phần đã làm thay vì tự giải. Chỉ dẫn này được truyền bằng cờ `checkWork` riêng tới API. Người dùng có thể mở camera để chụp (chọn camera trước/sau) hoặc chọn ảnh có sẵn. Ảnh JPEG/PNG/WebP tối đa 3 MB được gửi đến backend rồi chuyển cho Gemini phân tích. Camera cần được cấp quyền; khi deploy, trình duyệt yêu cầu HTTPS. Ảnh không được lưu vào Vercel hoặc localStorage; lịch sử trình duyệt chỉ ghi tên ảnh.
 
 ```env
 VITE_API_BASE_URL=http://localhost:3000/api

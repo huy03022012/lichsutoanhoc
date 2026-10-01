@@ -38,6 +38,21 @@
     background: #00000018;
 }
 
+.chatImage {
+    display: block;
+    max-width: min(100%, 320px);
+    max-height: 240px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.previousImageNotice {
+    margin-bottom: 6px;
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
 /* Công thức dài có thể cuộn ngang thay vì làm tràn khung chat. */
 .bubble .katex-display {
     max-width: 100%;
