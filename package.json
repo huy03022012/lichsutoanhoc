@@ -1,19 +1,26 @@
 {
-  "name": "mathhistory-ai",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "start": "vite preview --host 0.0.0.0"
-  },
-  "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest"
-  },
-  "devDependencies": {}
+    "name": "mathhistory-ai",
+    "private": true,
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview",
+        "start": "node src/services/server.js",
+        "server": "node src/services/server.js"
+    },
+    "dependencies": {
+        "@google/genai": "^1.21.0",
+        "cors": "^2.8.5",
+        "dotenv": "^17.2.2",
+        "express": "^5.1.0",
+        "express-rate-limit": "^8.7.0",
+        "react": "latest",
+        "react-dom": "latest"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-react": "latest",
+        "vite": "latest"
+    }
 }

@@ -32,6 +32,14 @@ input {
 button {
     cursor: pointer;
 }
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+.error {
+    color: #c0392b;
+    line-height: 1.5;
+}
 .app {
     min-height: 100vh;
     background: var(--bg);
