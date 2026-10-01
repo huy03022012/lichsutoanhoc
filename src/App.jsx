@@ -326,11 +326,6 @@ function AIView() {
                         <br />• Phân tích câu trả lời sai
                         <br />• Gợi ý bài học tiếp theo
                     </p>
-                    <hr />
-                    <p className="muted">
-                        API key không đặt trong trình duyệt; AI sẽ được gọi qua
-                        backend.
-                    </p>
                 </div>
             </div>
         </section>
