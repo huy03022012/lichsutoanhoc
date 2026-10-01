@@ -1,4 +1,7 @@
+// Dữ liệu học liệu dùng chung giữa API local và Vercel serverless functions.
+// Mỗi bài gồm thông tin thẻ, nội dung chi tiết và các nguồn để đọc thêm.
 export const lessons = [
+    // Mỗi mục cần id duy nhất; key hỗ trợ tìm kiếm và sources là các liên kết đọc thêm.
     {
         id: "egypt",
         icon: "🏺",
@@ -241,6 +244,7 @@ export const lessons = [
     },
 ];
 
+// Mỗi mốc gồm năm, tên sự kiện và lời giới thiệu ngắn.
 export const timeline = [
     ["~3000 TCN", "Ai Cập", "Toán học gắn với đo đạc và đời sống."],
     ["~600 TCN", "Pythagoras", "Các tư tưởng quan trọng về số và hình học."],
@@ -253,6 +257,7 @@ export const timeline = [
     ],
 ];
 
+// Đáp án chỉ dùng ở backend; API content chỉ trả câu hỏi và các lựa chọn.
 export const quiz = {
     question:
         "Ai là tác giả của “Cơ sở” (Elements), tác phẩm có ảnh hưởng lớn đến hình học?",

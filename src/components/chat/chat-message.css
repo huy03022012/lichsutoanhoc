@@ -1,0 +1,58 @@
+/* Hình dạng chung cho một tin nhắn trong khung chat. */
+.bubble {
+    max-width: 85%;
+    padding: 11px 14px;
+    border-radius: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+/* Khoảng cách và phân cấp tiêu đề trong Markdown do AI trả về. */
+.bubble p {
+    margin: 0 0 0.75em;
+}
+
+.bubble p:last-child,
+.bubble ul:last-child,
+.bubble ol:last-child {
+    margin-bottom: 0;
+}
+
+.bubble h1,
+.bubble h2,
+.bubble h3,
+.bubble h4 {
+    margin: 0.75em 0 0.35em;
+    font-size: 1.05em;
+}
+
+.bubble ul,
+.bubble ol {
+    margin: 0.35em 0;
+    padding-left: 1.4em;
+}
+
+.bubble code {
+    padding: 0.1em 0.3em;
+    border-radius: 4px;
+    background: #00000018;
+}
+
+/* Công thức dài có thể cuộn ngang thay vì làm tràn khung chat. */
+.bubble .katex-display {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+/* Màu nền và hướng căn khác nhau giữa câu trả lời AI và người dùng. */
+.bot {
+    background: var(--surface2);
+    align-self: flex-start;
+}
+
+.me {
+    background: var(--primary);
+    color: white;
+    align-self: flex-end;
+}

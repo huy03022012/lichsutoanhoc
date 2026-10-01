@@ -1,4 +1,5 @@
 :root {
+    /* Biến màu dùng chung để giữ đồng nhất giao diện sáng/tối. */
     color-scheme: light dark;
     --bg: light-dark(#f5faf7, #0b1712);
     --surface: light-dark(#fff, #12211a);
@@ -10,6 +11,7 @@
     --primary2: light-dark(#e2f6e9, #173c2a);
     --shadow: 0 18px 45px #0b241310;
 }
+/* Quy tắc cơ bản và khung ứng dụng. */
 * {
     box-sizing: border-box;
 }
@@ -40,6 +42,7 @@ button:disabled {
     color: #c0392b;
     line-height: 1.5;
 }
+/* Thanh đầu trang, điều hướng và nút hồ sơ. */
 .app {
     min-height: 100vh;
     background: var(--bg);
@@ -99,6 +102,7 @@ nav button:hover {
     border-radius: 12px;
     color: var(--text);
 }
+/* Bố cục trang, trang chủ, thẻ thống kê và các thẻ học liệu dùng chung. */
 main {
     max-width: 1180px;
     margin: auto;
@@ -258,6 +262,7 @@ main {
     color: var(--muted);
     line-height: 1.55;
 }
+/* Dòng thời gian ngang và trang chi tiết bài học/nguồn tham khảo. */
 .timeline {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -334,6 +339,7 @@ main {
     margin-bottom: 0;
     font-size: 14px;
 }
+/* Ô tìm kiếm của thư viện và bố cục màn hình trợ giảng AI. */
 .search {
     display: flex;
     gap: 10px;
@@ -353,8 +359,141 @@ main {
     grid-template-columns: 1fr 1fr;
     gap: 18px;
 }
+.aiWorkspace {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    align-items: stretch;
+}
+/* Sidebar chức năng và lịch sử hội thoại gần đây. */
+.chatSidebar {
+    min-width: 0;
+    min-height: 460px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.newChatButton {
+    width: 100%;
+}
+.chatHistoryHeading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 4px;
+}
+.chatHistoryHeading h3 {
+    margin: 0;
+    font-size: 14px;
+}
+.clearHistoryButton {
+    border: 0;
+    padding: 5px 2px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+.clearHistoryButton:hover {
+    color: #e47b70;
+    text-decoration: underline;
+}
+.clearHistoryButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+.conversationList {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    max-height: 260px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.conversationRow {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+.conversationItem {
+    min-width: 0;
+    flex: 1;
+    padding: 10px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.conversationItem:hover,
+.conversationItem.selected {
+    border-color: var(--line);
+    background: var(--surface2);
+}
+.conversationTitle {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.conversationItem small {
+    flex: 0 0 auto;
+    color: var(--muted);
+}
+.deleteConversationButton {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 22px;
+    line-height: 1;
+}
+.deleteConversationButton:hover {
+    border-color: #e47b7040;
+    background: #e47b7018;
+    color: #e47b70;
+}
+.deleteConversationButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+.featureCard {
+    margin-top: auto;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface2);
+}
+.featureCard .tag {
+    margin-top: 0;
+}
+.featureCard h3 {
+    margin: 10px 0 8px;
+}
+.featureCard ul {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.65;
+}
+/* Khung chat cố định; phần tin nhắn tự cuộn bên trong khung. */
 .chat {
-    min-height: 390px;
+    height: 460px;
+    min-height: 0;
+    min-width: 0;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 18px;
@@ -362,64 +501,53 @@ main {
     display: flex;
     flex-direction: column;
 }
+.chatExpanded {
+    position: fixed;
+    inset: 88px 4vw 24px;
+    z-index: 20;
+    width: auto;
+    height: auto;
+    max-width: 1200px;
+    margin: 0 auto;
+    box-shadow: 0 20px 80px #0009;
+}
+.aiWorkspaceExpanded {
+    position: relative;
+    z-index: 21;
+}
+.aiWorkspaceExpanded .chatSidebar {
+    visibility: hidden;
+}
+.chatHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.expandChat {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+}
 .messages {
-    flex: 1;
+    flex: 1 1 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
 }
-.bubble {
-    max-width: 85%;
-    padding: 11px 14px;
-    border-radius: 14px;
-    line-height: 1.5;
-    overflow-wrap: anywhere;
-}
-.bubble p {
-    margin: 0 0 0.75em;
-}
-.bubble p:last-child,
-.bubble ul:last-child,
-.bubble ol:last-child {
-    margin-bottom: 0;
-}
-.bubble h1,
-.bubble h2,
-.bubble h3,
-.bubble h4 {
-    margin: 0.75em 0 0.35em;
-    font-size: 1.05em;
-}
-.bubble ul,
-.bubble ol {
-    margin: 0.35em 0;
-    padding-left: 1.4em;
-}
-.bubble code {
-    padding: 0.1em 0.3em;
-    border-radius: 4px;
-    background: #00000018;
-}
-.bubble .katex-display {
-    max-width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
-}
-.bot {
-    background: var(--surface2);
-    align-self: flex-start;
-}
-.me {
-    background: var(--primary);
-    color: white;
-    align-self: flex-end;
-}
+/* Ô nhập câu hỏi nằm dưới vùng tin nhắn, không bị cuộn theo nội dung. */
 .chatbar {
+    flex: 0 0 auto;
     display: flex;
     gap: 8px;
     margin-top: 12px;
 }
+/* Thành phần quiz/tiến độ được giữ style để có thể bật lại sau này. */
 .quiz {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -457,6 +585,7 @@ main {
     background: var(--primary);
     width: 62%;
 }
+/* Các lớp dashboard/tiến độ còn lưu để có thể dùng lại khi bật tính năng. */
 .dash {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -467,6 +596,7 @@ main {
     font-size: 30px;
     margin-top: 6px;
 }
+/* Trạng thái rỗng và chân trang. */
 .empty {
     text-align: center;
     padding: 35px;
@@ -482,10 +612,28 @@ hr {
     border-top: 1px solid var(--line);
     margin: 22px 0;
 }
+/* Điều chỉnh bố cục cho tablet và điện thoại. */
 @media (max-width: 850px) {
     .hero,
-    .ai {
+    .ai:not(.aiWorkspace) {
         grid-template-columns: 1fr;
+    }
+    .aiWorkspace {
+        grid-template-columns: 1fr;
+    }
+    .chatSidebar {
+        min-height: auto;
+    }
+    .conversationList {
+        max-height: 170px;
+    }
+    .featureCard {
+        display: block;
+    }
+    .featureCard ul {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 20px;
     }
     .grid {
         grid-template-columns: 1fr 1fr;
@@ -496,7 +644,11 @@ hr {
     nav {
         display: none;
     }
+    .chatExpanded {
+        inset: 82px 3vw 16px;
+    }
 }
+/* Tinh chỉnh chat và lưới nội dung trên màn hình điện thoại nhỏ. */
 @media (max-width: 520px) {
     main {
         padding-top: 22px;
@@ -515,5 +667,19 @@ hr {
     }
     .profile {
         display: none;
+    }
+    .chat {
+        height: min(70vh, 520px);
+        padding: 14px;
+    }
+    .chatExpanded {
+        inset: 78px 3vw 12px;
+        height: auto;
+    }
+    .chatSidebar {
+        padding: 12px;
+    }
+    .featureCard ul {
+        grid-template-columns: 1fr;
     }
 }

@@ -1,23 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import rehypeKatex from "rehype-katex";
-import remarkMath from "remark-math";
+import ChatMessage from "./components/chat/ChatMessage.jsx";
 import {
     chatWithAI,
     getContent,
-    getProgress,
-    submitQuiz,
 } from "./services/api.js";
 
+// Danh sách tab được dùng để vẽ thanh điều hướng và chọn màn hình tương ứng.
 const navItems = [
     ["home", "Trang chủ"],
     ["library", "Thư viện"],
     ["timeline", "Dòng thời gian"],
     ["ai", "AI trợ giảng"],
-    ["dashboard", "Tiến độ"],
 ];
 
-const AI_CHAT_STORAGE_KEY = "mathhistory-ai-chat-v1";
+// sessionStorage giữ lịch sử riêng cho từng tab trình duyệt và tự hết khi đóng tab.
+const AI_CHAT_STORAGE_KEY = "mathhistory-ai-conversations-v1";
+// Đọc khóa cũ một lần để không làm mất lịch sử đã lưu trước khi hỗ trợ nhiều cuộc chat.
+const LEGACY_AI_CHAT_STORAGE_KEY = "mathhistory-ai-chat-v1";
 const initialAiMessages = [
     {
         role: "bot",
@@ -25,28 +24,86 @@ const initialAiMessages = [
     },
 ];
 
-function readSavedAiMessages() {
-    try {
-        const saved = sessionStorage.getItem(AI_CHAT_STORAGE_KEY);
-        if (!saved) return initialAiMessages;
-
-        const messages = JSON.parse(saved);
-        if (
-            !Array.isArray(messages) ||
-            !messages.every(
-                (message) =>
-                    (message.role === "bot" || message.role === "me") &&
-                    typeof message.text === "string",
-            )
-        ) {
-            return initialAiMessages;
-        }
-        return messages;
-    } catch {
-        return initialAiMessages;
-    }
+// Tạo một cuộc hội thoại mới với lời chào ban đầu từ AI.
+function createConversation(messages = initialAiMessages) {
+    return {
+        id: `${Date.now()}-${Math.random()}`,
+        title: "Cuộc trò chuyện mới",
+        updatedAt: Date.now(),
+        messages,
+    };
 }
 
+// Đặt tên cuộc chat theo câu hỏi đầu tiên để người dùng dễ tìm lại.
+function getConversationTitle(messages) {
+    const firstQuestion = messages.find((message) => message.role === "me");
+    if (!firstQuestion) return "Cuộc trò chuyện mới";
+    const title = firstQuestion.text.replace(/\s+/g, " ").trim();
+    return title.length > 42 ? `${title.slice(0, 42)}…` : title;
+}
+
+// Chỉ nhận dữ liệu có role và nội dung hợp lệ trước khi hiển thị Markdown.
+function isValidMessages(messages) {
+    return (
+        Array.isArray(messages) &&
+        messages.every(
+            (message) =>
+                (message.role === "bot" || message.role === "me") &&
+                typeof message.text === "string",
+        )
+    );
+}
+
+// Khôi phục lịch sử đã lưu; nếu dữ liệu hỏng thì chuyển về cuộc chat trống.
+function readSavedAiConversations() {
+    try {
+        const saved = sessionStorage.getItem(AI_CHAT_STORAGE_KEY);
+        if (saved) {
+            const state = JSON.parse(saved);
+            if (
+                Array.isArray(state.conversations) &&
+                state.conversations.every(
+                    (conversation) =>
+                        typeof conversation.id === "string" &&
+                        typeof conversation.title === "string" &&
+                        Number.isFinite(conversation.updatedAt) &&
+                        isValidMessages(conversation.messages),
+                )
+            ) {
+                const conversations = state.conversations
+                    .slice(0, 10)
+                    .sort((a, b) => b.updatedAt - a.updatedAt);
+                const activeId = conversations.some(
+                    (conversation) => conversation.id === state.activeId,
+                )
+                    ? state.activeId
+                    : conversations[0]?.id;
+                if (conversations.length) return { conversations, activeId };
+            }
+        }
+
+        const legacyMessages = sessionStorage.getItem(
+            LEGACY_AI_CHAT_STORAGE_KEY,
+        );
+        if (legacyMessages) {
+            const messages = JSON.parse(legacyMessages);
+            if (isValidMessages(messages)) {
+                const conversation = createConversation(messages);
+                conversation.title = getConversationTitle(messages);
+                return {
+                    conversations: [conversation],
+                    activeId: conversation.id,
+                };
+            }
+        }
+    } catch {
+        // Nếu dữ liệu phiên cũ không đọc được, bắt đầu cuộc trò chuyện mới.
+    }
+    const conversation = createConversation();
+    return { conversations: [conversation], activeId: conversation.id };
+}
+
+// Thẻ học liệu được dùng lại ở trang chủ và trong thư viện.
 function Card({ lesson, onReadMore }) {
     return (
         <article className="card">
@@ -61,6 +118,7 @@ function Card({ lesson, onReadMore }) {
     );
 }
 
+// Trang chủ nhận dữ liệu từ API và đưa người dùng đến các khu vực chính.
 function Home({ setView, lessons, timeline, onReadMore }) {
     return (
         <section className="view active">
@@ -131,6 +189,7 @@ function Home({ setView, lessons, timeline, onReadMore }) {
         </section>
     );
 }
+// Hiển thị một con số tổng hợp ở thẻ giới thiệu trang chủ.
 function Stat({ value, label }) {
     return (
         <div className="stat">
@@ -139,6 +198,7 @@ function Stat({ value, label }) {
         </div>
     );
 }
+// Thư viện lọc danh sách đã tải về; tìm kiếm không tạo yêu cầu API mới.
 function Library({ lessons, onReadMore }) {
     const [q, setQ] = useState("");
     const [query, setQuery] = useState("");
@@ -189,6 +249,7 @@ function Library({ lessons, onReadMore }) {
         </section>
     );
 }
+// Trang chi tiết hiển thị nội dung bài và các liên kết nguồn tham khảo.
 function LessonDetail({ lesson, onBack }) {
     return (
         <section className="view active lessonDetail">
@@ -232,6 +293,7 @@ function LessonDetail({ lesson, onBack }) {
         </section>
     );
 }
+// Tiêu đề dùng chung cho các trang con.
 function Header({ title, text }) {
     return (
         <div className="sectionHead">
@@ -242,9 +304,11 @@ function Header({ title, text }) {
         </div>
     );
 }
+// Trạng thái rỗng dùng khi tìm kiếm không có kết quả.
 function Empty({ text }) {
     return <div className="card empty">{text}</div>;
 }
+// Trình bày các mốc theo đúng thứ tự backend cung cấp.
 function TimelineView({ timeline }) {
     return (
         <section className="view active">
@@ -274,28 +338,136 @@ function TimelineView({ timeline }) {
         </section>
     );
 }
+// Khu vực chat: quản lý danh sách 10 cuộc gần đây, trạng thái gửi và lưu phiên.
 function AIView() {
-    const [messages, setMessages] = useState(readSavedAiMessages);
+    // State chat gồm danh sách cuộc, ID đang mở, nội dung nhập, trạng thái gửi và giao diện phóng to.
+    const [chatState, setChatState] = useState(readSavedAiConversations);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [isExpanded, setIsExpanded] = useState(false);
+    const activeConversation =
+        chatState.conversations.find(
+            (conversation) => conversation.id === chatState.activeId,
+        ) ?? chatState.conversations[0];
+    const messages = activeConversation.messages;
+
+    // Ghi mọi thay đổi vào phiên hiện tại; lỗi lưu không làm sập giao diện chat.
     useEffect(() => {
         try {
             sessionStorage.setItem(
                 AI_CHAT_STORAGE_KEY,
-                JSON.stringify(messages),
+                JSON.stringify(chatState),
             );
+            sessionStorage.removeItem(LEGACY_AI_CHAT_STORAGE_KEY);
         } catch (storageError) {
-            console.error("Không thể lưu lịch sử trò chuyện trong phiên:", storageError);
+            console.error(
+                "Không thể lưu lịch sử trò chuyện trong phiên:",
+                storageError,
+            );
         }
-    }, [messages]);
+    }, [chatState]);
 
+    // Tạo cuộc trò chuyện mới và bỏ cuộc cũ nhất nếu đã vượt quá 10 cuộc.
+    function startNewConversation() {
+        setChatState((current) => {
+            const active = current.conversations.find(
+                (conversation) => conversation.id === current.activeId,
+            );
+            if (
+                active &&
+                !active.messages.some((message) => message.role === "me")
+            ) {
+                return {
+                    ...current,
+                    activeId: active.id,
+                };
+            }
+
+            const conversation = createConversation();
+            return {
+                conversations: [conversation, ...current.conversations].slice(
+                    0,
+                    10,
+                ),
+                activeId: conversation.id,
+            };
+        });
+        setError("");
+        setInput("");
+    }
+
+    // Xóa toàn bộ cuộc chat sau khi người dùng xác nhận.
+    function clearConversationHistory() {
+        if (loading || !window.confirm("Bạn muốn xóa toàn bộ lịch sử trò chuyện?")) {
+            return;
+        }
+        const conversation = createConversation();
+        setChatState({
+            conversations: [conversation],
+            activeId: conversation.id,
+        });
+        setError("");
+        setInput("");
+    }
+
+    // Xóa riêng một cuộc; nếu đó là cuộc đang mở thì chuyển sang cuộc còn lại.
+    function deleteConversation(conversationId) {
+        if (
+            loading ||
+            !window.confirm("Bạn muốn xóa riêng cuộc trò chuyện này?")
+        ) {
+            return;
+        }
+
+        setChatState((current) => {
+            const conversations = current.conversations.filter(
+                (conversation) => conversation.id !== conversationId,
+            );
+            const remaining =
+                conversations.length > 0 ? conversations : [createConversation()];
+            const activeId =
+                current.activeId === conversationId
+                    ? remaining[0].id
+                    : current.activeId;
+
+            return { conversations: remaining, activeId };
+        });
+        setError("");
+        setInput("");
+    }
+
+    // Cập nhật một cuộc theo ID để phản hồi API luôn gắn đúng hội thoại ban đầu.
+    function updateConversation(conversationId, updateMessages) {
+        setChatState((current) => {
+            const conversations = current.conversations.map((conversation) => {
+                if (conversation.id !== conversationId) return conversation;
+                const nextMessages = updateMessages(conversation.messages);
+                return {
+                    ...conversation,
+                    messages: nextMessages,
+                    title: getConversationTitle(nextMessages),
+                    updatedAt: Date.now(),
+                };
+            });
+            return {
+                ...current,
+                conversations: conversations.sort(
+                    (a, b) => b.updatedAt - a.updatedAt,
+                ),
+            };
+        });
+    }
+
+    // Gửi câu hỏi lên backend; chỉ giữ câu hỏi trong lịch sử khi gọi API thành công.
     async function ask() {
         const v = input.trim();
         if (!v || loading) return;
         setError("");
         const messageId = `${Date.now()}-${Math.random()}`;
-        setMessages((current) => [
+        const conversationId = activeConversation.id;
+        // Gắn ID tạm cho câu hỏi để có thể gỡ riêng nếu request thất bại.
+        updateConversation(conversationId, (current) => [
             ...current,
             { role: "me", text: v, id: messageId },
         ]);
@@ -305,15 +477,16 @@ function AIView() {
             if (!data.answer)
                 throw new Error("Dịch vụ AI không trả về nội dung.");
             setInput("");
-            setMessages((m) => [
-                ...m,
+            updateConversation(conversationId, (current) => [
+                ...current,
                 {
                     role: "bot",
                     text: data.answer,
                 },
             ]);
         } catch (err) {
-            setMessages((current) =>
+            // Không giữ câu hỏi gửi lỗi trong lịch sử; thông báo lỗi hiển thị riêng bên dưới.
+            updateConversation(conversationId, (current) =>
                 current.filter((message) => message.id !== messageId),
             );
             setError(err.message || "Không thể nhận phản hồi từ AI.");
@@ -321,31 +494,137 @@ function AIView() {
             setLoading(false);
         }
     }
+    // Chọn hội thoại đang hiển thị; sidebar và vùng chat cùng đọc state này.
     return (
         <section className="view active">
             <Header
                 title="AI trợ giảng"
                 text="Đặt câu hỏi để hiểu bài theo cách đơn giản hơn."
             />
-            <div className="ai">
-                <div className="chat">
-                    <div className="messages">
-                        {messages.map((m, i) => (
-                            <div className={`bubble ${m.role}`} key={i}>
-                                {m.role === "bot" ? (
-                                    <ReactMarkdown
-                                        remarkPlugins={[remarkMath]}
-                                        rehypePlugins={[rehypeKatex]}
+            <div className={`ai aiWorkspace${isExpanded ? " aiWorkspaceExpanded" : ""}`}>
+                <aside className="chatSidebar">
+                    <button
+                        className="primary newChatButton"
+                        type="button"
+                        onClick={startNewConversation}
+                        disabled={loading}
+                    >
+                        + Cuộc trò chuyện mới
+                    </button>
+                    <div className="chatHistoryHeading">
+                        <h3>10 cuộc trò chuyện gần đây</h3>
+                        <button
+                            className="clearHistoryButton"
+                            type="button"
+                            onClick={clearConversationHistory}
+                            disabled={loading}
+                        >
+                            Xóa lịch sử
+                        </button>
+                    </div>
+                    <div className="conversationList">
+                        {chatState.conversations
+                            .filter(
+                                (conversation) =>
+                                    conversation.id === activeConversation.id ||
+                                    conversation.messages.some(
+                                        (message) => message.role === "me",
+                                    ),
+                            )
+                            .map((conversation) => (
+                                <div
+                                    className="conversationRow"
+                                    key={conversation.id}
+                                >
+                                    <button
+                                        className={`conversationItem${conversation.id === activeConversation.id ? " selected" : ""}`}
+                                        type="button"
+                                        onClick={() => {
+                                            if (loading) return;
+                                            setChatState((current) => ({
+                                                ...current,
+                                                activeId: conversation.id,
+                                            }));
+                                            setError("");
+                                        }}
+                                        disabled={loading}
+                                        title={conversation.title}
                                     >
-                                        {m.text}
-                                    </ReactMarkdown>
-                                ) : (
-                                    m.text
-                                )}
-                            </div>
+                                        <span className="conversationTitle">
+                                            {conversation.title}
+                                        </span>
+                                        <small>
+                                            {new Date(
+                                                conversation.updatedAt,
+                                            ).toLocaleDateString("vi-VN", {
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                            })}
+                                        </small>
+                                    </button>
+                                    <button
+                                        className="deleteConversationButton"
+                                        type="button"
+                                        onClick={() =>
+                                            deleteConversation(conversation.id)
+                                        }
+                                        disabled={loading}
+                                        aria-label={`Xóa cuộc trò chuyện: ${conversation.title}`}
+                                        title="Xóa cuộc trò chuyện"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            ))}
+                    </div>
+                    <div className="featureCard">
+                        <span className="tag">Các chức năng</span>
+                        <h3>AI học cùng bạn</h3>
+                        <ul>
+                            <li>Giải thích khái niệm</li>
+                            <li>Tóm tắt bài học</li>
+                            <li>Tạo câu hỏi luyện tập</li>
+                            <li>Gợi ý nghiên cứu</li>
+                            <li>Phân tích câu trả lời sai</li>
+                            <li>Gợi ý bài học tiếp theo</li>
+                        </ul>
+                    </div>
+                </aside>
+                <div className={`chat${isExpanded ? " chatExpanded" : ""}`}>
+                    <div className="chatHeader">
+                        <span className="muted">Trò chuyện với AI</span>
+                        <button
+                            className="secondary expandChat"
+                            type="button"
+                            onClick={() => setIsExpanded((expanded) => !expanded)}
+                            aria-label={
+                                isExpanded
+                                    ? "Thu nhỏ khung trò chuyện"
+                                    : "Phóng to khung trò chuyện"
+                            }
+                            title={
+                                isExpanded
+                                    ? "Thu nhỏ khung trò chuyện"
+                                    : "Phóng to khung trò chuyện"
+                            }
+                        >
+                            {isExpanded ? "Thu nhỏ ↙" : "Phóng to ↗"}
+                        </button>
+                    </div>
+                    <div className="messages">
+                        {messages.map((message, index) => (
+                            <ChatMessage
+                                key={message.id ?? `${message.role}-${index}`}
+                                message={message}
+                            />
                         ))}
                         {loading && (
-                            <div className="bubble bot">Đang suy nghĩ…</div>
+                            <ChatMessage
+                                message={{
+                                    role: "bot",
+                                    text: "Đang suy nghĩ…",
+                                }}
+                            />
                         )}
                     </div>
                     <div className="chatbar">
@@ -370,165 +649,18 @@ function AIView() {
                         </p>
                     )}
                 </div>
-                <div className="card">
-                    <span className="tag">Các chức năng</span>
-                    <h3>AI học cùng bạn</h3>
-                    <p>
-                        • Giải thích khái niệm
-                        <br />• Tóm tắt bài học
-                        <br />• Tạo câu hỏi luyện tập
-                        <br />• Gợi ý nghiên cứu
-                        <br />• Phân tích câu trả lời sai
-                        <br />• Gợi ý bài học tiếp theo
-                    </p>
-                </div>
             </div>
         </section>
-    );
-}
-function Dashboard({ quiz }) {
-    const [selected, setSelected] = useState(null);
-    const [progress, setProgress] = useState(null);
-    const [progressError, setProgressError] = useState("");
-    const [quizResult, setQuizResult] = useState(null);
-    const [quizLoading, setQuizLoading] = useState(false);
-    const [quizError, setQuizError] = useState("");
-    useEffect(() => {
-        getProgress()
-            .then((data) => {
-                setProgress(data);
-                setProgressError("");
-            })
-            .catch((err) => setProgressError(err.message));
-    }, []);
-    const completed = progress?.lessonsCompleted ?? 0;
-    const total = progress?.lessonsTotal ?? 0;
-    async function submitSelectedAnswer() {
-        if (selected === null || quizLoading) return;
-        setQuizLoading(true);
-        setQuizError("");
-        setQuizResult(null);
-        try {
-            const result = await submitQuiz(selected);
-            setQuizResult(result);
-            setProgress((previous) =>
-                previous
-                    ? {
-                          ...previous,
-                          quizzesCompleted: result.quizzesCompleted,
-                          averageScore: result.averageScore,
-                      }
-                    : previous,
-            );
-        } catch (error) {
-            setQuizError(error.message);
-        } finally {
-            setQuizLoading(false);
-        }
-    }
-    return (
-        <section className="view active">
-            <Header
-                title="Tiến độ học tập"
-                text="Số liệu được lấy từ API lưu trữ của ứng dụng."
-            />
-            <div className="dash">
-                <StatCard
-                    label="Bài đã học"
-                    value={progress ? completed : "—"}
-                />
-                <StatCard
-                    label="Quiz đã làm"
-                    value={progress?.quizzesCompleted ?? "—"}
-                />
-                <StatCard
-                    label="Điểm trung bình"
-                    value={
-                        progress?.averageScore == null
-                            ? "—"
-                            : `${progress.averageScore}%`
-                    }
-                />
-                <StatCard
-                    label="Chuỗi học"
-                    value={
-                        progress?.streakDays == null
-                            ? "—"
-                            : `${progress.streakDays} ngày`
-                    }
-                />
-            </div>
-            <div className="section">
-                <div className="card">
-                    <h3>Tiến độ khóa khám phá</h3>
-                    <div className="progress">
-                        <i
-                            style={{
-                                width: total
-                                    ? `${Math.round((completed / total) * 100)}%`
-                                    : "0%",
-                            }}
-                        />
-                    </div>
-                    <p className="muted">
-                        {progressError
-                            ? progressError
-                            : progress
-                              ? `${completed}/${total} bài đã hoàn thành.`
-                              : "Đang tải tiến độ…"}
-                    </p>
-                </div>
-            </div>
-            <div className="section">
-                <div className="quiz">
-                    <span className="tag">Quiz</span>
-                    <h3>{quiz.question}</h3>
-                    {quiz.options.map((x, i) => (
-                        <button
-                            key={x}
-                            className={`option ${selected === i ? "selected" : ""}`}
-                            onClick={() => setSelected(i)}
-                        >
-                            {String.fromCharCode(65 + i)}. {x}
-                        </button>
-                    ))}
-                    <button
-                        className="primary"
-                        onClick={submitSelectedAnswer}
-                        disabled={selected === null || quizLoading}
-                    >
-                        {quizLoading ? "Đang lưu…" : "Nộp bài"}
-                    </button>
-                    {quizError && (
-                        <p className="error" role="alert">
-                            {quizError}
-                        </p>
-                    )}
-                    {quizResult && (
-                        <p className="result">
-                            {quizResult.correct
-                                ? "✅ Chính xác!"
-                                : "ℹ️ Chưa chính xác, hãy đối chiếu tài liệu."}
-                        </p>
-                    )}
-                </div>
-            </div>
-        </section>
-    );
-}
-function StatCard({ label, value }) {
-    return (
-        <div className="card">
-            <small className="muted">{label}</small>
-            <b className="big">{value}</b>
-        </div>
     );
 }
 function App() {
+    // view xác định tab hiện tại; selectedLesson chỉ có giá trị ở trang chi tiết bài.
     const [view, setView] = useState("home");
     const [selectedLesson, setSelectedLesson] = useState(null);
     const [content, setContent] = useState(null);
     const [error, setError] = useState("");
+
+    // Tải nội dung ban đầu một lần; trang có trạng thái tải và lỗi riêng.
     useEffect(() => {
         getContent()
             .then(setContent)
@@ -555,6 +687,8 @@ function App() {
         setView("lesson");
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
+
+    // Trang chi tiết quay lại thư viện và đưa người dùng lên đầu trang.
     function returnToLibrary() {
         setSelectedLesson(null);
         setView("library");
@@ -577,13 +711,14 @@ function App() {
         ),
         timeline: <TimelineView timeline={content.timeline} />,
         ai: <AIView />,
-        dashboard: <Dashboard quiz={content.quiz} />,
         lesson: selectedLesson ? (
             <LessonDetail lesson={selectedLesson} onBack={returnToLibrary} />
         ) : (
             <Library lessons={content.lessons} onReadMore={openLesson} />
         ),
     };
+
+    // Điều hướng phía client: đổi nội dung trang mà không tải lại toàn bộ website.
     return (
         <div className="app">
             <header className="top">
@@ -621,4 +756,5 @@ function App() {
         </div>
     );
 }
+// Entry component được main.jsx mount vào #root.
 export default App;

@@ -17,6 +17,8 @@ import { fileURLToPath } from "node:url";
 
 dotenv.config();
 
+// Express này dùng khi chạy local hoặc môi trường Node server thường.
+// Vercel sử dụng các handler riêng trong thư mục api/.
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const clientOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
@@ -31,6 +33,7 @@ const distDirectory = join(
     "../../dist",
 );
 
+// Đọc tiến độ từ file JSON local; lỗi dữ liệu hỏng được báo lên API, không tự reset.
 function readProgress() {
     if (!existsSync(dataFile))
         return { completedLessonIds: [], quizzesCompleted: 0, quizCorrect: 0 };
@@ -46,6 +49,7 @@ function readProgress() {
     return { ...progress, quizCorrect: progress.quizCorrect ?? 0 };
 }
 
+// Ghi qua file tạm rồi đổi tên để tránh để lại JSON ghi dở nếu tiến trình bị ngắt.
 function saveProgress(progress) {
     mkdirSync(dirname(dataFile), { recursive: true });
     const temporaryFile = `${dataFile}.tmp`;
@@ -53,11 +57,13 @@ function saveProgress(progress) {
     renameSync(temporaryFile, dataFile);
 }
 
+// Cấu hình middleware chung trước khi khai báo các route API.
 app.set("trust proxy", process.env.TRUST_PROXY === "1" ? 1 : false);
 app.use(cors({ origin: clientOrigins }));
 app.use(express.json({ limit: "16kb" }));
 app.use(express.static(distDirectory));
 
+// Trả nội dung dùng chung của website; không gửi đáp án quiz xuống frontend.
 app.get("/api/content", (_req, res) =>
     res.json({
         lessons,
@@ -66,6 +72,7 @@ app.get("/api/content", (_req, res) =>
     }),
 );
 
+// Đọc thống kê từ file tiến độ hiện tại trên máy chủ local.
 app.get("/api/progress", (_req, res) => {
     const progress = readProgress();
     res.json({
@@ -82,6 +89,7 @@ app.get("/api/progress", (_req, res) => {
     });
 });
 
+// Đánh dấu một bài hợp lệ là hoàn thành, không ghi trùng ID.
 app.post("/api/progress/lessons/:lessonId", (req, res) => {
     if (!lessons.some((lesson) => lesson.id === req.params.lessonId)) {
         return res.status(404).json({ error: "Không tìm thấy bài học." });
@@ -97,6 +105,7 @@ app.post("/api/progress/lessons/:lessonId", (req, res) => {
     });
 });
 
+// Chấm quiz ở backend để đáp án đúng không cần gửi cho trình duyệt.
 app.post("/api/progress/quiz", (req, res) => {
     const { selectedOption } = req.body ?? {};
     if (
@@ -122,10 +131,12 @@ app.post("/api/progress/quiz", (req, res) => {
     });
 });
 
+// Chỉ backend mới đọc biến khóa Gemini; không dùng tiền tố VITE_.
 const ai = process.env.GEMINI_API_KEY
     ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
     : null;
 
+// Rate limit được áp dụng trước handler để hạn chế lạm dụng endpoint AI.
 app.post(
     "/api/ai/chat",
     rateLimit({
@@ -194,6 +205,7 @@ app.use((error, _req, res, _next) => {
         });
 });
 
+// Mở server local; Vercel không chạy app.listen mà gọi các hàm trong api/.
 app.listen(port, () =>
     console.log(`MathHistory API đang chạy tại http://localhost:${port}`),
 );

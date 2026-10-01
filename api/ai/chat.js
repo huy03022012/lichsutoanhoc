@@ -4,6 +4,7 @@ import { AI_SYSTEM_INSTRUCTION } from "../../src/services/aiPrompt.js";
 
 const model = "gemini-3.5-flash-lite";
 
+// Serverless endpoint cho POST /api/ai/chat; GEMINI_API_KEY chỉ đọc ở server.
 export default async function handler(req, res) {
     if (req.method !== "POST") {
         res.setHeader("Allow", "POST");
@@ -26,6 +27,7 @@ export default async function handler(req, res) {
             .json({ error: "Chưa cấu hình GEMINI_API_KEY trên Vercel." });
     }
 
+    // Chặn vượt hạn mức trước khi gọi Gemini để tránh request tốn quota.
     let rateLimit;
     try {
         rateLimit = await checkAiRateLimit(req);
@@ -45,6 +47,7 @@ export default async function handler(req, res) {
     }
 
     try {
+        // Khởi tạo client trong backend và yêu cầu mô hình chỉ trả lời đúng chủ đề.
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
         const response = await ai.models.generateContent({
             model,

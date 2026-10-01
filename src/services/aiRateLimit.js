@@ -1,12 +1,16 @@
 import { createHash } from "node:crypto";
 
+// Giới hạn 20 yêu cầu / 15 phút cho mỗi địa chỉ IP.
 const limit = 20;
 const windowSeconds = 15 * 60;
+// Bộ nhớ tiến trình chỉ là phương án local; Vercel scale nhiều instance nên dùng Redis.
 const localWindows = new Map();
+// Redis tăng bộ đếm và đặt thời hạn trong một lệnh nguyên tử để tránh đua dữ liệu.
 const incrementScript =
     "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],ARGV[1]); end; return n";
 
 function getClientKey(req) {
+    // Băm IP để không lưu địa chỉ IP thô trong Redis.
     const forwardedFor = req.headers["x-forwarded-for"];
     const address =
         (typeof forwardedFor === "string" ? forwardedFor.split(",")[0] : "") ||
@@ -83,6 +87,7 @@ export async function checkAiRateLimit(req) {
     const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
     if (url || token) {
+        // Không âm thầm dùng bộ đếm local khi cấu hình Redis mới chỉ có một nửa.
         if (!url || !token) {
             throw new Error(
                 "Cần cấu hình đồng thời UPSTASH_REDIS_REST_URL và UPSTASH_REDIS_REST_TOKEN.",

@@ -1,4 +1,8 @@
+# Thư viện cài đặt và bản build được tạo lại từ package.json / source.
 node_modules/
+# Không đưa khóa API hoặc cấu hình riêng của máy lên Git.
 .env
+# Vite tạo thư mục này khi build; Vercel cũng tự build lại khi deploy.
 dist/
+# Bỏ qua dữ liệu tiến độ runtime ở root, nhưng vẫn theo dõi src/data/.
 /data/
