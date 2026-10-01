@@ -2,7 +2,7 @@
     "buildCommand": "npm run build",
     "outputDirectory": "dist",
     "functions": {
-        "api/[...path].js": {
+        "api/ai/chat.js": {
             "maxDuration": 30
         }
     }

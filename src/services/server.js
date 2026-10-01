@@ -4,6 +4,7 @@ import express from "express";
 import { rateLimit } from "express-rate-limit";
 import { GoogleGenAI } from "@google/genai";
 import { lessons, quiz, timeline } from "../data/content.js";
+import { AI_SYSTEM_INSTRUCTION } from "./aiPrompt.js";
 import {
     existsSync,
     mkdirSync,
@@ -156,6 +157,7 @@ app.post(
             const response = await ai.models.generateContent({
                 model: "gemini-3.5-flash-lite",
                 contents: message,
+                config: { systemInstruction: AI_SYSTEM_INSTRUCTION },
             });
             if (!response.text)
                 return res

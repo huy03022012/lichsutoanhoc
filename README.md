@@ -30,13 +30,18 @@ npm run preview
 ```
 
 ## AI backend
-Frontend gọi `POST /api/ai/chat`. Có thể đặt URL backend bằng biến môi trường:
+Frontend gọi `POST /api/ai/chat`; AI dùng model `gemini-3.5-flash-lite` và chỉ hỗ trợ chủ đề Lịch sử Toán học.
 
 ```env
 VITE_API_BASE_URL=http://localhost:3000/api
 ```
 
 Không đặt API key của mô hình AI trong frontend.
+
+## Deploy trên Vercel
+Import repository vào Vercel; cấu hình build là `npm run build`, output là `dist`. Vercel Functions nằm trong `api/`, gồm `GET /api/content` và `POST /api/ai/chat`. Thêm `GEMINI_API_KEY` trong Project Settings → Environment Variables rồi redeploy.
+
+AI giới hạn 20 câu hỏi mỗi 15 phút cho mỗi IP. Để bộ giới hạn dùng chung giữa các serverless instance, cấu hình thêm `UPSTASH_REDIS_REST_URL` và `UPSTASH_REDIS_REST_TOKEN` trong Vercel. Nếu không cấu hình Redis, giới hạn chỉ được giữ trong từng instance và có thể không đồng nhất khi Vercel scale.
 
 Backend cung cấp `GET /api/content`, `GET /api/progress`, `POST /api/progress/lessons/:lessonId` và `POST /api/progress/quiz`. Tiến độ được lưu trong `data/progress.json` (thư mục này không đưa vào Git); có thể đặt `PROGRESS_FILE` để dùng đường dẫn trên ổ đĩa bền vững.
 
