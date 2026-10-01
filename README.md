@@ -6,6 +6,7 @@ Website học tập tương tác về lịch sử Toán học, dùng React/Vite 
 - `src/App.jsx`: các màn hình, điều hướng và xử lý hội thoại ở trình duyệt.
 - `src/styles.css`: bố cục, màu sắc, responsive và giao diện chat.
 - `src/components/chat/`: định dạng Markdown/công thức KaTeX của tin nhắn AI.
+- `src/main.jsx`: điểm khởi chạy React, nạp CSS ứng dụng và gắn `App` vào trang.
 - `src/data/content.js`: bài học, nguồn tham khảo, dòng thời gian và quiz.
 - `src/services/api.js`: các yêu cầu API mà frontend gửi lên backend.
 - `src/services/server.js`: API Express khi chạy local hoặc Node server.
@@ -13,7 +14,9 @@ Website học tập tương tác về lịch sử Toán học, dùng React/Vite 
 - `src/services/aiPrompt.js` và `src/services/aiRateLimit.js`: giới hạn chủ đề AI và hạn mức gọi AI.
 - `src/services/aiImage.js`: loại ảnh, giới hạn dung lượng và kiểm tra payload gửi tới AI.
 - `index.html`: ngôn ngữ trang, metadata trình duyệt và điểm gắn React.
+- `public/favicon.svg`: logo nhỏ hiển thị trên tab trình duyệt.
 - `.gitignore`: các file/mục không được đưa vào Git.
+- `.env.example`: danh sách biến môi trường mẫu; sao chép thành `.env` để chạy local.
 - `vite.config.js`: máy chủ phát triển, proxy API và cấu hình preview.
 - `package.json`: lệnh chạy cùng thư viện runtime/development.
 - `vercel.json`: lệnh build, thư mục output và giới hạn thời gian Function.
@@ -24,7 +27,7 @@ Lịch sử tối đa 10 cuộc trò chuyện được lưu bằng `localStorage
 
 Trên màn hình rộng, điều hướng nằm trên thanh đầu trang; trên điện thoại/tablet (màn hình rộng tối đa 850 px), dùng nút ba gạch để mở menu. Menu đóng khi chọn trang, chạm vùng bên ngoài hoặc nhấn Escape.
 
-`package.json`, `vercel.json` và `package-lock.json` là JSON; JSON chuẩn không cho phép comment. Vì vậy phần giải thích cấu hình nằm trong mục sơ đồ này; `package-lock.json` được npm tự sinh nên không nên chỉnh tay.
+`package.json`, `vercel.json` và `package-lock.json` là JSON; JSON chuẩn không cho phép comment. Vì vậy phần giải thích cấu hình nằm trong mục sơ đồ này: `package.json` định nghĩa scripts/thư viện, `vercel.json` cấu hình build và serverless function, còn `package-lock.json` khóa phiên bản dependency chính xác và được npm tự sinh nên không nên chỉnh tay.
 
 ## Yêu cầu
 - Node.js 20+
