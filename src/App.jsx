@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ChatMessage from "./components/chat/ChatMessage.jsx";
 import {
     chatWithAI,
@@ -13,7 +13,7 @@ const navItems = [
     ["ai", "AI trợ giảng"],
 ];
 
-// sessionStorage giữ lịch sử riêng cho từng tab trình duyệt và tự hết khi đóng tab.
+// localStorage giữ 10 cuộc chat trên trình duyệt kể cả sau khi đóng website.
 const AI_CHAT_STORAGE_KEY = "mathhistory-ai-conversations-v1";
 // Đọc khóa cũ một lần để không làm mất lịch sử đã lưu trước khi hỗ trợ nhiều cuộc chat.
 const LEGACY_AI_CHAT_STORAGE_KEY = "mathhistory-ai-chat-v1";
@@ -57,7 +57,10 @@ function isValidMessages(messages) {
 // Khôi phục lịch sử đã lưu; nếu dữ liệu hỏng thì chuyển về cuộc chat trống.
 function readSavedAiConversations() {
     try {
-        const saved = sessionStorage.getItem(AI_CHAT_STORAGE_KEY);
+        // Ưu tiên bộ nhớ bền vững; đọc sessionStorage để chuyển lịch sử cũ sang localStorage.
+        const saved =
+            localStorage.getItem(AI_CHAT_STORAGE_KEY) ??
+            sessionStorage.getItem(AI_CHAT_STORAGE_KEY);
         if (saved) {
             const state = JSON.parse(saved);
             if (
@@ -82,9 +85,9 @@ function readSavedAiConversations() {
             }
         }
 
-        const legacyMessages = sessionStorage.getItem(
-            LEGACY_AI_CHAT_STORAGE_KEY,
-        );
+        const legacyMessages =
+            localStorage.getItem(LEGACY_AI_CHAT_STORAGE_KEY) ??
+            sessionStorage.getItem(LEGACY_AI_CHAT_STORAGE_KEY);
         if (legacyMessages) {
             const messages = JSON.parse(legacyMessages);
             if (isValidMessages(messages)) {
@@ -338,7 +341,7 @@ function TimelineView({ timeline }) {
         </section>
     );
 }
-// Khu vực chat: quản lý danh sách 10 cuộc gần đây, trạng thái gửi và lưu phiên.
+// Khu vực chat: quản lý 10 cuộc gần đây, trạng thái gửi và lưu trên trình duyệt.
 function AIView() {
     // State chat gồm danh sách cuộc, ID đang mở, nội dung nhập, trạng thái gửi và giao diện phóng to.
     const [chatState, setChatState] = useState(readSavedAiConversations);
@@ -346,23 +349,34 @@ function AIView() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [isExpanded, setIsExpanded] = useState(false);
+    const messagesContainerRef = useRef(null);
     const activeConversation =
         chatState.conversations.find(
             (conversation) => conversation.id === chatState.activeId,
         ) ?? chatState.conversations[0];
     const messages = activeConversation.messages;
 
-    // Ghi mọi thay đổi vào phiên hiện tại; lỗi lưu không làm sập giao diện chat.
+    // Giữ khung chat ở cuối khi có tin nhắn mới, trạng thái chờ hoặc đổi cuộc trò chuyện.
+    useEffect(() => {
+        const messagesContainer = messagesContainerRef.current;
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    }, [activeConversation.id, messages, loading]);
+
+    // Lưu bền vững trên trình duyệt; xóa khóa session cũ sau khi chuyển dữ liệu.
     useEffect(() => {
         try {
-            sessionStorage.setItem(
+            localStorage.setItem(
                 AI_CHAT_STORAGE_KEY,
                 JSON.stringify(chatState),
             );
+            sessionStorage.removeItem(AI_CHAT_STORAGE_KEY);
             sessionStorage.removeItem(LEGACY_AI_CHAT_STORAGE_KEY);
+            localStorage.removeItem(LEGACY_AI_CHAT_STORAGE_KEY);
         } catch (storageError) {
             console.error(
-                "Không thể lưu lịch sử trò chuyện trong phiên:",
+                "Không thể lưu lịch sử trò chuyện trên trình duyệt:",
                 storageError,
             );
         }
@@ -611,7 +625,7 @@ function AIView() {
                             {isExpanded ? "Thu nhỏ ↙" : "Phóng to ↗"}
                         </button>
                     </div>
-                    <div className="messages">
+                    <div className="messages" ref={messagesContainerRef}>
                         {messages.map((message, index) => (
                             <ChatMessage
                                 key={message.id ?? `${message.role}-${index}`}

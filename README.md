@@ -19,6 +19,8 @@ Website học tập tương tác về lịch sử Toán học, dùng React/Vite 
 
 Khi sửa một tính năng, thường cần kiểm tra cả giao diện (`src/App.jsx`), kiểu dáng (`src/styles.css`) và API tương ứng. Các chú thích tiếng Việt trong mã giải thích luồng xử lý hoặc giới hạn triển khai; không phải dòng code nào cũng có chú thích vì các biểu thức đơn giản được giải thích rõ hơn qua tên biến/hàm.
 
+Lịch sử tối đa 10 cuộc trò chuyện được lưu bằng `localStorage` trên trình duyệt hiện tại, nên vẫn còn sau khi đóng rồi mở lại website. Dữ liệu không được gửi lên Vercel và không tự đồng bộ sang trình duyệt/thiết bị khác; người dùng có thể xóa từng cuộc hoặc xóa toàn bộ trong giao diện chat.
+
 `package.json`, `vercel.json` và `package-lock.json` là JSON; JSON chuẩn không cho phép comment. Vì vậy phần giải thích cấu hình nằm trong mục sơ đồ này; `package-lock.json` được npm tự sinh nên không nên chỉnh tay.
 
 ## Yêu cầu
