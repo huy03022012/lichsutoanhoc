@@ -9,7 +9,7 @@ import {
 const navItems = [
     ["home", "Trang chủ"],
     ["library", "Thư viện"],
-    ["timeline", "Timeline"],
+    ["timeline", "Dòng thời gian"],
     ["ai", "AI trợ giảng"],
     ["dashboard", "Tiến độ"],
 ];
