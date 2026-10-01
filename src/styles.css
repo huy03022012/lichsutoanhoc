@@ -374,6 +374,37 @@ main {
     padding: 11px 14px;
     border-radius: 14px;
     line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+.bubble p {
+    margin: 0 0 0.75em;
+}
+.bubble p:last-child,
+.bubble ul:last-child,
+.bubble ol:last-child {
+    margin-bottom: 0;
+}
+.bubble h1,
+.bubble h2,
+.bubble h3,
+.bubble h4 {
+    margin: 0.75em 0 0.35em;
+    font-size: 1.05em;
+}
+.bubble ul,
+.bubble ol {
+    margin: 0.35em 0;
+    padding-left: 1.4em;
+}
+.bubble code {
+    padding: 0.1em 0.3em;
+    border-radius: 4px;
+    background: #00000018;
+}
+.bubble .katex-display {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 .bot {
     background: var(--surface2);

@@ -1,4 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import rehypeKatex from "rehype-katex";
+import remarkMath from "remark-math";
 import {
     chatWithAI,
     getContent,
@@ -13,6 +16,36 @@ const navItems = [
     ["ai", "AI trợ giảng"],
     ["dashboard", "Tiến độ"],
 ];
+
+const AI_CHAT_STORAGE_KEY = "mathhistory-ai-chat-v1";
+const initialAiMessages = [
+    {
+        role: "bot",
+        text: "Xin chào! Mình có thể giúp bạn giải thích một chủ đề lịch sử Toán, tóm tắt bài học hoặc tạo câu hỏi ôn tập.",
+    },
+];
+
+function readSavedAiMessages() {
+    try {
+        const saved = sessionStorage.getItem(AI_CHAT_STORAGE_KEY);
+        if (!saved) return initialAiMessages;
+
+        const messages = JSON.parse(saved);
+        if (
+            !Array.isArray(messages) ||
+            !messages.every(
+                (message) =>
+                    (message.role === "bot" || message.role === "me") &&
+                    typeof message.text === "string",
+            )
+        ) {
+            return initialAiMessages;
+        }
+        return messages;
+    } catch {
+        return initialAiMessages;
+    }
+}
 
 function Card({ lesson, onReadMore }) {
     return (
@@ -242,20 +275,30 @@ function TimelineView({ timeline }) {
     );
 }
 function AIView() {
-    const [messages, setMessages] = useState([
-        {
-            role: "bot",
-            text: "Xin chào! Mình có thể giúp bạn giải thích một chủ đề lịch sử Toán, tóm tắt bài học hoặc tạo câu hỏi ôn tập.",
-        },
-    ]);
+    const [messages, setMessages] = useState(readSavedAiMessages);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    useEffect(() => {
+        try {
+            sessionStorage.setItem(
+                AI_CHAT_STORAGE_KEY,
+                JSON.stringify(messages),
+            );
+        } catch (storageError) {
+            console.error("Không thể lưu lịch sử trò chuyện trong phiên:", storageError);
+        }
+    }, [messages]);
+
     async function ask() {
         const v = input.trim();
         if (!v || loading) return;
         setError("");
-        setMessages((m) => [...m, { role: "me", text: v }]);
+        const messageId = `${Date.now()}-${Math.random()}`;
+        setMessages((current) => [
+            ...current,
+            { role: "me", text: v, id: messageId },
+        ]);
         setLoading(true);
         try {
             const data = await chatWithAI(v);
@@ -270,6 +313,9 @@ function AIView() {
                 },
             ]);
         } catch (err) {
+            setMessages((current) =>
+                current.filter((message) => message.id !== messageId),
+            );
             setError(err.message || "Không thể nhận phản hồi từ AI.");
         } finally {
             setLoading(false);
@@ -286,7 +332,16 @@ function AIView() {
                     <div className="messages">
                         {messages.map((m, i) => (
                             <div className={`bubble ${m.role}`} key={i}>
-                                {m.text}
+                                {m.role === "bot" ? (
+                                    <ReactMarkdown
+                                        remarkPlugins={[remarkMath]}
+                                        rehypePlugins={[rehypeKatex]}
+                                    >
+                                        {m.text}
+                                    </ReactMarkdown>
+                                ) : (
+                                    m.text
+                                )}
                             </div>
                         ))}
                         {loading && (
