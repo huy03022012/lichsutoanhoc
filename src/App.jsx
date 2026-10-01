@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
     chatWithAI,
-    completeLesson,
     getContent,
     getProgress,
     submitQuiz,
@@ -15,50 +14,21 @@ const navItems = [
     ["dashboard", "Tiến độ"],
 ];
 
-function Card({ lesson }) {
-    const [completed, setCompleted] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState("");
-    async function markComplete() {
-        if (saving || completed) return;
-        setSaving(true);
-        setError("");
-        try {
-            await completeLesson(lesson.id);
-            setCompleted(true);
-        } catch (error) {
-            setError(error.message);
-        } finally {
-            setSaving(false);
-        }
-    }
+function Card({ lesson, onReadMore }) {
     return (
         <article className="card">
             <div className="icon">{lesson.icon}</div>
             <span className="tag">{lesson.tag}</span>
             <h3>{lesson.title}</h3>
             <p>{lesson.desc}</p>
-            <button
-                className="secondary"
-                onClick={markComplete}
-                disabled={saving || completed}
-            >
-                {saving
-                    ? "Đang lưu…"
-                    : completed
-                      ? "Đã hoàn thành ✓"
-                      : "Đánh dấu đã học →"}
+            <button className="secondary" onClick={() => onReadMore(lesson)}>
+                Đọc thêm →
             </button>
-            {error && (
-                <p className="error" role="alert">
-                    {error}
-                </p>
-            )}
         </article>
     );
 }
 
-function Home({ setView, lessons, timeline }) {
+function Home({ setView, lessons, timeline, onReadMore }) {
     return (
         <section className="view active">
             <div className="hero">
@@ -117,7 +87,11 @@ function Home({ setView, lessons, timeline }) {
                 </div>
                 <div className="grid">
                     {lessons.slice(0, 3).map((l) => (
-                        <Card key={l.title} lesson={l} />
+                        <Card
+                            key={l.id}
+                            lesson={l}
+                            onReadMore={onReadMore}
+                        />
                     ))}
                 </div>
             </div>
@@ -132,7 +106,7 @@ function Stat({ value, label }) {
         </div>
     );
 }
-function Library({ lessons }) {
+function Library({ lessons, onReadMore }) {
     const [q, setQ] = useState("");
     const [query, setQuery] = useState("");
     const filtered = useMemo(
@@ -168,13 +142,60 @@ function Library({ lessons }) {
             </form>
             {filtered.length ? (
                 <div className="grid">
-                    {filtered.map((l) => (
-                        <Card key={l.id} lesson={l} />
+                    {filtered.map((lesson) => (
+                        <Card
+                            key={lesson.id}
+                            lesson={lesson}
+                            onReadMore={onReadMore}
+                        />
                     ))}
                 </div>
             ) : (
                 <Empty text="Không tìm thấy học liệu phù hợp." />
             )}
+        </section>
+    );
+}
+function LessonDetail({ lesson, onBack }) {
+    return (
+        <section className="view active lessonDetail">
+            <button className="secondary backButton" onClick={onBack}>
+                ← Quay lại thư viện
+            </button>
+            <article className="detailArticle">
+                <div className="icon detailIcon" aria-hidden="true">
+                    {lesson.icon}
+                </div>
+                <span className="tag">{lesson.tag}</span>
+                <h1>{lesson.title}</h1>
+                <p className="detailIntroduction">{lesson.introduction}</p>
+                {lesson.sections.map((section) => (
+                    <section className="detailSection" key={section.heading}>
+                        <h2>{section.heading}</h2>
+                        <p>{section.text}</p>
+                    </section>
+                ))}
+                <section className="sourcesSection" aria-labelledby="sources-title">
+                    <h2 id="sources-title">Nguồn tham khảo</h2>
+                    <ul className="sourceList">
+                        {lesson.sources.map((source) => (
+                            <li key={source.url}>
+                                <a
+                                    href={source.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    {source.title}
+                                    <span aria-hidden="true"> ↗</span>
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="muted sourceNote">
+                        Mở nguồn trong tab mới để đọc thêm và đối chiếu thông tin.
+                    </p>
+                </section>
+            </article>
         </section>
     );
 }
@@ -455,6 +476,7 @@ function StatCard({ label, value }) {
 }
 function App() {
     const [view, setView] = useState("home");
+    const [selectedLesson, setSelectedLesson] = useState(null);
     const [content, setContent] = useState(null);
     const [error, setError] = useState("");
     useEffect(() => {
@@ -478,18 +500,39 @@ function App() {
                 </main>
             </div>
         );
+    function openLesson(lesson) {
+        setSelectedLesson(lesson);
+        setView("lesson");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    function returnToLibrary() {
+        setSelectedLesson(null);
+        setView("library");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
     const pages = {
         home: (
             <Home
                 setView={setView}
                 lessons={content.lessons}
                 timeline={content.timeline}
+                onReadMore={openLesson}
             />
         ),
-        library: <Library lessons={content.lessons} />,
+        library: (
+            <Library
+                lessons={content.lessons}
+                onReadMore={openLesson}
+            />
+        ),
         timeline: <TimelineView timeline={content.timeline} />,
         ai: <AIView />,
         dashboard: <Dashboard quiz={content.quiz} />,
+        lesson: selectedLesson ? (
+            <LessonDetail lesson={selectedLesson} onBack={returnToLibrary} />
+        ) : (
+            <Library lessons={content.lessons} onReadMore={openLesson} />
+        ),
     };
     return (
         <div className="app">
@@ -505,7 +548,12 @@ function App() {
                         <button
                             key={id}
                             onClick={() => setView(id)}
-                            className={view === id ? "active" : ""}
+                            className={
+                                view === id ||
+                                (view === "lesson" && id === "library")
+                                    ? "active"
+                                    : ""
+                            }
                         >
                             {label}
                         </button>

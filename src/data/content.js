@@ -6,6 +6,36 @@ export const lessons = [
         title: "Toán học Ai Cập cổ đại",
         desc: "Khám phá những dấu vết sớm của tư duy Toán học và cách nó gắn với đời sống.",
         key: "ai cap co dai",
+        introduction:
+            "Ở Ai Cập cổ đại, toán học phát triển từ nhu cầu giải quyết những việc cụ thể: đo đạc ruộng đất sau mùa lũ sông Nile, xây dựng công trình và quản lý lương thực, thuế khóa.",
+        sections: [
+            {
+                heading: "Toán học gắn với đời sống",
+                text: "Người Ai Cập dùng các phép tính với số nguyên và phân số để chia phần, tính diện tích và thể tích. Họ biểu diễn số bằng các ký hiệu riêng; hệ thống này thuận tiện cho ghi chép nhưng khác với cách viết số thập phân theo vị trí ngày nay.",
+            },
+            {
+                heading: "Các văn bản toán học",
+                text: "Giấy cói Rhind, được chép vào khoảng thế kỷ 17 TCN từ một tài liệu cổ hơn, lưu lại nhiều bài toán về phân số, phép nhân, đo lường và phân chia lương thực. Đây là bằng chứng quan trọng giúp các nhà nghiên cứu tìm hiểu cách toán học được sử dụng thời đó.",
+            },
+            {
+                heading: "Di sản và giới hạn của tư liệu",
+                text: "Những văn bản còn lại cho thấy toán học Ai Cập thiên về phương pháp thực hành. Vì số tư liệu tồn tại có hạn, không nên suy rộng một bài toán riêng lẻ thành kết luận về toàn bộ kiến thức của người Ai Cập cổ đại.",
+            },
+        ],
+        sources: [
+            {
+                title: "Toán học Ai Cập cổ đại — Wikipedia tiếng Việt",
+                url: "https://vi.wikipedia.org/wiki/To%C3%A1n_h%E1%BB%8Dc_Ai_C%E1%BA%ADp_c%E1%BB%95_%C4%91%E1%BA%A1i",
+            },
+            {
+                title: "Rhind Mathematical Papyrus — MacTutor History of Mathematics",
+                url: "https://mathshistory.st-andrews.ac.uk/HistTopics/Egyptian_mathematics/",
+            },
+            {
+                title: "Ancient Egyptian mathematics — Encyclopaedia Britannica",
+                url: "https://www.britannica.com/science/mathematics/Ancient-Egypt",
+            },
+        ],
     },
     {
         id: "euclid",
@@ -14,6 +44,36 @@ export const lessons = [
         title: "Euclid và Cơ sở",
         desc: "Tìm hiểu vai trò của Euclid và cách các tiên đề tạo nền tảng cho hình học.",
         key: "euclid co so hinh hoc",
+        introduction:
+            "Euclid là nhà toán học hoạt động tại Alexandria vào khoảng năm 300 TCN. Tác phẩm Elements (Cơ sở) sắp xếp kiến thức hình học và số học thành một hệ thống có lập luận chặt chẽ.",
+        sections: [
+            {
+                heading: "Từ định nghĩa đến chứng minh",
+                text: "Elements bắt đầu bằng các định nghĩa, tiên đề và yêu cầu cơ bản, sau đó xây dựng từng mệnh đề bằng chứng minh. Cách tổ chức này giúp người đọc theo dõi vì sao một kết luận đúng thay vì chỉ ghi nhớ kết quả.",
+            },
+            {
+                heading: "Nội dung của Elements",
+                text: "Bộ sách gồm 13 quyển, đề cập đến hình học phẳng, tỉ lệ, số học và hình học không gian. Nội dung là sự hệ thống hóa tri thức toán học Hy Lạp trước đó; không phải mọi kết quả trong sách đều do Euclid tự phát hiện.",
+            },
+            {
+                heading: "Ảnh hưởng lâu dài",
+                text: "Elements được sao chép, dịch và dùng làm sách học trong nhiều thế kỷ. Phương pháp tiên đề của tác phẩm trở thành một hình mẫu quan trọng cho cách trình bày toán học.",
+            },
+        ],
+        sources: [
+            {
+                title: "Cơ sở (Euclid) — Wikipedia tiếng Việt",
+                url: "https://vi.wikipedia.org/wiki/C%C6%A1_s%E1%BB%9F_(Euclid)",
+            },
+            {
+                title: "Euclid — MacTutor History of Mathematics",
+                url: "https://mathshistory.st-andrews.ac.uk/Biographies/Euclid/",
+            },
+            {
+                title: "Euclid's Elements — Encyclopaedia Britannica",
+                url: "https://www.britannica.com/topic/Elements-by-Euclid",
+            },
+        ],
     },
     {
         id: "pythagoras",
@@ -22,6 +82,40 @@ export const lessons = [
         title: "Pythagoras và định lý",
         desc: "Khám phá câu chuyện lịch sử xoay quanh một định lý quen thuộc.",
         key: "pythagoras dinh ly",
+        introduction:
+            "Pythagoras (khoảng thế kỷ 6 TCN) gắn với một cộng đồng triết học và tôn giáo nghiên cứu số học, âm nhạc và hình học. Tiểu sử của ông được ghi lại nhiều thế kỷ sau, nên cần phân biệt truyền thuyết với chứng cứ lịch sử.",
+        sections: [
+            {
+                heading: "Định lý và các nền văn minh",
+                text: "Quan hệ giữa ba cạnh của tam giác vuông đã xuất hiện trong nhiều nền văn minh trước thời Pythagoras. Bảng đất sét Babylon cho thấy người xưa biết các bộ ba số thỏa mãn quan hệ này, dù bằng chứng đó không đồng nghĩa họ trình bày chứng minh theo hình thức Hy Lạp.",
+            },
+            {
+                heading: "Vì sao định lý mang tên Pythagoras?",
+                text: "Tên gọi truyền thống phản ánh ảnh hưởng của trường phái Pythagoras đối với toán học Hy Lạp. Chứng minh tổng quát còn lại trong các tác phẩm toán học về sau; không có cơ sở chắc chắn để khẳng định cá nhân Pythagoras là người đầu tiên phát hiện mọi dạng của định lý.",
+            },
+            {
+                heading: "Ý nghĩa toán học",
+                text: "Định lý cho biết trong tam giác vuông, bình phương cạnh huyền bằng tổng bình phương hai cạnh góc vuông. Quan hệ này kết nối hình học với số học và có nhiều cách chứng minh khác nhau.",
+            },
+        ],
+        sources: [
+            {
+                title: "Pythagoras — Wikipedia tiếng Việt",
+                url: "https://vi.wikipedia.org/wiki/Pythagoras",
+            },
+            {
+                title: "Định lý Pythagoras — Wikipedia tiếng Việt",
+                url: "https://vi.wikipedia.org/wiki/%C4%90%E1%BB%8Bnh_l%C3%BD_Pythagoras",
+            },
+            {
+                title: "Pythagoras — MacTutor History of Mathematics",
+                url: "https://mathshistory.st-andrews.ac.uk/Biographies/Pythagoras/",
+            },
+            {
+                title: "Pythagorean theorem — Encyclopaedia Britannica",
+                url: "https://www.britannica.com/science/Pythagorean-theorem",
+            },
+        ],
     },
     {
         id: "archimedes",
@@ -30,6 +124,36 @@ export const lessons = [
         title: "Archimedes",
         desc: "Tìm hiểu các ý tưởng Toán học gắn với hình học và cơ học.",
         key: "archimedes",
+        introduction:
+            "Archimedes (khoảng 287–212 TCN), sinh tại Syracuse, là một trong những nhà toán học và kỹ sư nổi bật của thế giới Hy Lạp cổ đại. Các tác phẩm còn lại cho thấy ông nghiên cứu hình học bằng lập luận rất tinh tế.",
+        sections: [
+            {
+                heading: "Đo diện tích và thể tích",
+                text: "Archimedes tìm được các kết quả về diện tích hình tròn, mặt cầu và thể tích khối cầu. Ông thường dùng phương pháp vét cạn: so sánh hình cần đo với những hình đã biết để thu hẹp sai số.",
+            },
+            {
+                heading: "Toán học và cơ học",
+                text: "Trong các công trình về cân bằng và đòn bẩy, ông phân tích trọng tâm và quy luật cân bằng. Câu nói nổi tiếng về điểm tựa thường được gắn với Archimedes, nhưng nhiều phiên bản phổ biến là lời kể về sau.",
+            },
+            {
+                heading: "Đọc sử liệu cẩn trọng",
+                text: "Một số tác phẩm của Archimedes được biết qua bản chép và bản dịch còn lại. Những câu chuyện về phát minh hay chiến tranh nên được đối chiếu với nghiên cứu lịch sử thay vì chỉ dựa vào giai thoại.",
+            },
+        ],
+        sources: [
+            {
+                title: "Archimedes — Wikipedia tiếng Việt",
+                url: "https://vi.wikipedia.org/wiki/Archimedes",
+            },
+            {
+                title: "Archimedes — MacTutor History of Mathematics",
+                url: "https://mathshistory.st-andrews.ac.uk/Biographies/Archimedes/",
+            },
+            {
+                title: "Archimedes — Encyclopaedia Britannica",
+                url: "https://www.britannica.com/biography/Archimedes",
+            },
+        ],
     },
     {
         id: "numbers",
@@ -38,6 +162,40 @@ export const lessons = [
         title: "Lịch sử con số",
         desc: "Khám phá hành trình của các hệ thống số qua nhiều nền văn minh.",
         key: "con so so hoc",
+        introduction:
+            "Cách viết số ngày nay là kết quả của nhiều đóng góp lịch sử. Hệ chữ số 0–9 và cách ghi số theo vị trí giúp biểu diễn những số rất lớn bằng một bộ ký hiệu nhỏ.",
+        sections: [
+            {
+                heading: "Giá trị theo vị trí",
+                text: "Trong hệ thập phân theo vị trí, một chữ số có giá trị tùy vào hàng của nó. Số 0 vừa là một chữ số, vừa có thể giữ chỗ để phân biệt các hàng, chẳng hạn 205 với 25.",
+            },
+            {
+                heading: "Con đường truyền bá",
+                text: "Hệ chữ số phát triển ở Ấn Độ và được các học giả trong thế giới Hồi giáo tiếp nhận, phát triển rồi truyền sang châu Âu. Tên gọi “chữ số Ả Rập” phản ánh một chặng đường truyền bá, không phải nguồn gốc duy nhất của hệ thống.",
+            },
+            {
+                heading: "Không chỉ có một hệ thống số",
+                text: "Các nền văn minh từng dùng hệ thập phân, hệ hai mươi, hệ sáu mươi và nhiều cách ghi số khác. Mỗi hệ thống phản ánh nhu cầu tính toán, trao đổi và ghi chép của xã hội sử dụng nó.",
+            },
+        ],
+        sources: [
+            {
+                title: "Chữ số Ả Rập — Wikipedia tiếng Việt",
+                url: "https://vi.wikipedia.org/wiki/Ch%E1%BB%AF_s%E1%BB%91_%E1%BA%A2_R%E1%BA%ADp",
+            },
+            {
+                title: "Lịch sử toán học — Wikipedia tiếng Việt",
+                url: "https://vi.wikipedia.org/wiki/L%E1%BB%8Bch_s%E1%BB%AD_to%C3%A1n_h%E1%BB%8Dc",
+            },
+            {
+                title: "Numeral systems and the history of zero — MacTutor History of Mathematics",
+                url: "https://mathshistory.st-andrews.ac.uk/HistTopics/Indian_numerals/",
+            },
+            {
+                title: "Hindu-Arabic numerals — Encyclopaedia Britannica",
+                url: "https://www.britannica.com/science/Hindu-Arabic-numeral-system",
+            },
+        ],
     },
     {
         id: "sources",
@@ -46,6 +204,40 @@ export const lessons = [
         title: "Cách kiểm chứng học liệu AI",
         desc: "Học cách đối chiếu thông tin AI với nguồn uy tín trước khi sử dụng.",
         key: "ai nguon kiem chung",
+        introduction:
+            "Công cụ AI có thể giúp gợi ý từ khóa hoặc giải thích khái niệm, nhưng câu trả lời có thể sai, thiếu ngữ cảnh hoặc dẫn nguồn không chính xác. Hãy xem AI như điểm bắt đầu cho việc tìm hiểu, không phải nguồn xác nhận cuối cùng.",
+        sections: [
+            {
+                heading: "Tìm nguồn gốc của khẳng định",
+                text: "Tách câu trả lời thành các khẳng định có thể kiểm tra: ai, ở đâu, khi nào, tác phẩm nào. Tìm nguồn độc lập cho từng thông tin quan trọng thay vì chỉ hỏi lại cùng một chatbot.",
+            },
+            {
+                heading: "Ưu tiên nguồn đáng tin",
+                text: "Ưu tiên bảo tàng, thư viện, trường đại học, ấn bản học thuật và bách khoa thư có biên tập. Kiểm tra tác giả, đơn vị phát hành, ngày cập nhật và tài liệu tham khảo.",
+            },
+            {
+                heading: "Ghi chú nguồn và mức độ chắc chắn",
+                text: "Ghi lại đường dẫn, tên tài liệu và ngày truy cập. Nếu các nguồn uy tín bất đồng hoặc tư liệu lịch sử còn hạn chế, hãy trình bày điểm chưa chắc chắn thay vì biến suy đoán thành sự thật.",
+            },
+        ],
+        sources: [
+            {
+                title: "Wikipedia — Wikipedia tiếng Việt",
+                url: "https://vi.wikipedia.org/wiki/Wikipedia",
+            },
+            {
+                title: "Thông tin khoa học trên Wikipedia — Wikipedia tiếng Việt",
+                url: "https://vi.wikipedia.org/wiki/Th%C3%B4ng_tin_khoa_h%E1%BB%8Dc_tr%C3%AAn_Wikipedia",
+            },
+            {
+                title: "UNESCO Recommendation on Open Science — evaluating and sharing knowledge",
+                url: "https://www.unesco.org/en/open-science/about",
+            },
+            {
+                title: "MacTutor History of Mathematics Archive",
+                url: "https://mathshistory.st-andrews.ac.uk/",
+            },
+        ],
     },
 ];
 
