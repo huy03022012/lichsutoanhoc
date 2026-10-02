@@ -1112,6 +1112,7 @@ function App() {
                             setView("home");
                         }}
                     />
+                    <PublicSearchIntro />
                 </main>
                 <footer className="footer">
                     <div>MathHistory AI · Học liệu lịch sử Toán học</div>
@@ -1367,5 +1368,57 @@ function App() {
         </div>
     );
 }
+
+function PublicSearchIntro() {
+    return (
+        <section className="publicSearchIntro" aria-labelledby="public-search-title">
+            <div className="sectionHead">
+                <div>
+                    <span className="tag">Khám phá Toán học</span>
+                    <h2 id="public-search-title">
+                        Tìm hiểu lịch sử Toán học qua các thời đại
+                    </h2>
+                    <p className="muted">
+                        MathHistory AI giới thiệu những câu chuyện về cách con
+                        người phát triển toán học, từ nhu cầu đo đạc và tính
+                        toán trong các nền văn minh cổ đại đến những ý tưởng
+                        vẫn được học ngày nay.
+                    </p>
+                </div>
+            </div>
+            <div className="grid publicSearchTopics">
+                <article className="card">
+                    <h3>Nhà toán học và phát minh</h3>
+                    <p>
+                        Tìm hiểu Euclid, Pythagoras, Archimedes và Al-Khwarizmi;
+                        khám phá các công trình đã góp phần định hình lịch sử
+                        toán học.
+                    </p>
+                </article>
+                <article className="card">
+                    <h3>Đại số và hình học</h3>
+                    <p>
+                        Khám phá nguồn gốc của đại số, phương trình, hình học
+                        cổ đại và cách các phương pháp toán học được hệ thống
+                        hóa qua nhiều thế kỷ.
+                    </p>
+                </article>
+                <article className="card">
+                    <h3>Toán học qua các nền văn minh</h3>
+                    <p>
+                        Từ Ai Cập cổ đại đến Baghdad thời Trung cổ, tìm hiểu
+                        lịch sử con số, phép tính và vai trò của toán học trong
+                        đời sống.
+                    </p>
+                </article>
+            </div>
+            <p className="muted publicSearchNote">
+                Phần giới thiệu này có thể xem công khai. Học liệu chi tiết, bài
+                tập và trợ giảng AI yêu cầu đăng nhập.
+            </p>
+        </section>
+    );
+}
+
 // Entry component được main.jsx mount vào #root.
 export default App;

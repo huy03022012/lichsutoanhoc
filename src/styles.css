@@ -329,6 +329,35 @@ nav button:hover {
     margin: 0 auto 22px;
     line-height: 1.6;
 }
+.publicSearchIntro {
+    margin: 30px 0 12px;
+    padding-top: 34px;
+    border-top: 1px solid var(--line);
+}
+.publicSearchIntro h2 {
+    margin: 12px 0;
+}
+.publicSearchIntro .sectionHead p {
+    max-width: 820px;
+    line-height: 1.65;
+}
+.publicSearchTopics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 22px;
+}
+.publicSearchTopics .card {
+    padding: 20px;
+}
+.publicSearchTopics h3 {
+    margin-top: 0;
+}
+.publicSearchTopics p {
+    margin-bottom: 0;
+}
+.publicSearchNote {
+    margin-top: 18px;
+    font-size: 13px;
+}
 .accountSearch {
     display: flex;
     gap: 10px;
@@ -1124,6 +1153,9 @@ hr {
 }
 /* Điều chỉnh bố cục cho tablet và điện thoại. */
 @media (max-width: 850px) {
+    .publicSearchTopics {
+        grid-template-columns: 1fr;
+    }
     .accountPageLayout {
         grid-template-columns: 1fr;
         gap: 22px;
