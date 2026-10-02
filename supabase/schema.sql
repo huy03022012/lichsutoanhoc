@@ -138,6 +138,10 @@ alter table public.math_submissions
     add column if not exists auto_score numeric(5, 2);
 alter table public.math_submissions
     add column if not exists auto_max_score numeric(5, 2);
+alter table public.math_submissions
+    add column if not exists auto_feedback jsonb not null default '[]'::jsonb;
+alter table public.math_submissions
+    add column if not exists teacher_score numeric(5, 2);
 
 create index if not exists math_submissions_assignment_id_idx
     on public.math_submissions (assignment_id, submitted_at desc);

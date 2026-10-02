@@ -4,6 +4,9 @@
     "functions": {
         "api/ai/chat.js": {
             "maxDuration": 30
+        },
+        "api/assignments/[assignmentId]/submissions.js": {
+            "maxDuration": 30
         }
     }
 }

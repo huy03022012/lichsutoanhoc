@@ -172,13 +172,17 @@ export function reviewAssignmentSubmission(
     assignmentId,
     submissionId,
     feedback,
+    teacherScore,
 ) {
+    const body = { submissionId };
+    if (feedback !== undefined) body.feedback = feedback;
+    if (teacherScore !== undefined) body.teacherScore = teacherScore;
     return request(
         `/assignments/${encodeURIComponent(assignmentId)}/submissions`,
         {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ submissionId, feedback }),
+            body: JSON.stringify(body),
         },
     );
 }

@@ -21,6 +21,7 @@ function createQuestion(type = "multiple_choice") {
         prompt: "",
         options: ["", "", "", ""],
         correctOptionIndex: 0,
+        answerKey: "",
         points: 0,
     };
 }
@@ -35,10 +36,7 @@ function readStructuredAnswer(answer) {
 }
 
 function totalQuizPoints(questions, pointsMode, commonPoints) {
-    const mcQuestions = questions.filter(
-        (question) => question.type === "multiple_choice",
-    );
-    const points = mcQuestions.reduce(
+    const points = questions.reduce(
         (total, question) =>
             total +
             Number(pointsMode === "equal" ? commonPoints : question.points || 0),
@@ -47,11 +45,21 @@ function totalQuizPoints(questions, pointsMode, commonPoints) {
     return Math.round(points * 100) / 100;
 }
 
+function isSubmissionReviewed(submission) {
+    return (
+        Boolean(submission?.teacher_feedback) ||
+        (submission?.teacher_score !== null &&
+            submission?.teacher_score !== undefined)
+    );
+}
+
 function SubmissionReview({ assignment, onError }) {
     const [submissions, setSubmissions] = useState([]);
     const [feedbackDrafts, setFeedbackDrafts] = useState({});
+    const [scoreDrafts, setScoreDrafts] = useState({});
     const [loading, setLoading] = useState(true);
     const [savingId, setSavingId] = useState("");
+    const [gradingId, setGradingId] = useState("");
 
     useEffect(() => {
         let active = true;
@@ -64,6 +72,16 @@ function SubmissionReview({ assignment, onError }) {
                         data.map((submission) => [
                             submission.id,
                             submission.teacher_feedback ?? "",
+                        ]),
+                    ),
+                );
+                setScoreDrafts(
+                    Object.fromEntries(
+                        data.map((submission) => [
+                            submission.id,
+                            submission.teacher_score ??
+                                submission.auto_score ??
+                                "",
                         ]),
                     ),
                 );
@@ -97,6 +115,38 @@ function SubmissionReview({ assignment, onError }) {
             onError(error.message);
         } finally {
             setSavingId("");
+        }
+    }
+
+    async function saveGrade(submissionId) {
+        if (
+            scoreDrafts[submissionId] === "" ||
+            !Number.isFinite(Number(scoreDrafts[submissionId]))
+        ) {
+            onError("Hãy nhập điểm giáo viên chấm hợp lệ.");
+            return;
+        }
+        const teacherScore = Number(scoreDrafts[submissionId]);
+        setGradingId(submissionId);
+        onError("");
+        try {
+            const { submission } = await reviewAssignmentSubmission(
+                assignment.id,
+                submissionId,
+                undefined,
+                teacherScore,
+            );
+            setSubmissions((current) =>
+                current.map((item) =>
+                    item.id === submissionId
+                        ? { ...item, teacher_score: submission.teacher_score }
+                        : item,
+                ),
+            );
+        } catch (error) {
+            onError(error.message);
+        } finally {
+            setGradingId("");
         }
     }
 
@@ -135,6 +185,28 @@ function SubmissionReview({ assignment, onError }) {
                                                     ]}
                                                 </p>
                                             )}
+                                            {question.type === "written" && (
+                                                <>
+                                                    <p className="muted submissionAnswer">
+                                                        Đáp án tham khảo: {question.answerKey}
+                                                    </p>
+                                                    {submission.auto_feedback?.find(
+                                                        (item) =>
+                                                            item.questionIndex === index,
+                                                    )?.feedback && (
+                                                        <p className="muted">
+                                                            Nhận xét AI:{" "}
+                                                            {
+                                                                submission.auto_feedback.find(
+                                                                    (item) =>
+                                                                        item.questionIndex ===
+                                                                        index,
+                                                                ).feedback
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </>
+                                            )}
                                         </div>
                                     );
                                 },
@@ -146,9 +218,40 @@ function SubmissionReview({ assignment, onError }) {
                     {submission.auto_score !== null &&
                         submission.auto_score !== undefined && (
                             <p className="assignmentScore">
-                                Điểm trắc nghiệm: {submission.auto_score}/
+                                Điểm AI: {submission.auto_score}/
                                 {submission.auto_max_score}
                             </p>
+                        )}
+                    {submission.auto_score !== null &&
+                        submission.auto_score !== undefined && (
+                            <>
+                                <label>
+                                    Điểm giáo viên chấm lại
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max={submission.auto_max_score}
+                                        step="0.01"
+                                        value={scoreDrafts[submission.id] ?? ""}
+                                        onChange={(event) =>
+                                            setScoreDrafts((current) => ({
+                                                ...current,
+                                                [submission.id]: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </label>
+                                <button
+                                    className="secondary"
+                                    type="button"
+                                    onClick={() => saveGrade(submission.id)}
+                                    disabled={gradingId === submission.id}
+                                >
+                                    {gradingId === submission.id
+                                        ? "Đang lưu điểm…"
+                                        : "Lưu điểm giáo viên"}
+                                </button>
+                            </>
                         )}
                     <label>
                         Nhận xét của giáo viên
@@ -189,9 +292,11 @@ export default function AssignmentsView({ user }) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [assignmentType, setAssignmentType] = useState("written");
-    const [questions, setQuestions] = useState([createQuestion()]);
+    const [questions, setQuestions] = useState([
+        createQuestion("written"),
+    ]);
     const [pointsMode, setPointsMode] = useState("equal");
-    const [commonPoints, setCommonPoints] = useState("2");
+    const [commonPoints, setCommonPoints] = useState("10");
     const [savingId, setSavingId] = useState("");
     const [deletingId, setDeletingId] = useState("");
     const canCreate = STAFF_ROLES.includes(user?.role);
@@ -207,8 +312,8 @@ export default function AssignmentsView({ user }) {
                 Object.fromEntries(
                     result.assignments.map((item) => [
                         item.id,
-                        item.submission?.answer?.startsWith("{")
-                            ? readStructuredAnswer(item.submission.answer)
+                            item.quiz_questions?.length
+                                ? readStructuredAnswer(item.submission?.answer)
                             : item.submission?.answer ?? "",
                     ]),
                 ),
@@ -228,11 +333,8 @@ export default function AssignmentsView({ user }) {
         event.preventDefault();
         setCreating(true);
         setError("");
-        if (
-            assignmentType !== "written" &&
-            totalQuizPoints(questions, pointsMode, commonPoints) !== 10
-        ) {
-            setError("Tổng điểm tối đa phải là 10. Hãy sửa điểm các câu trắc nghiệm.");
+        if (totalQuizPoints(questions, pointsMode, commonPoints) !== 10) {
+            setError("Tổng điểm tối đa phải là 10. Hãy sửa điểm các câu.");
             setCreating(false);
             return;
         }
@@ -249,7 +351,7 @@ export default function AssignmentsView({ user }) {
             setTitle("");
             setDescription("");
             setAssignmentType("written");
-            setQuestions([createQuestion()]);
+            setQuestions([createQuestion("written")]);
         } catch (requestError) {
             setError(requestError.message);
         } finally {
@@ -262,13 +364,12 @@ export default function AssignmentsView({ user }) {
         setError("");
         try {
             const assignment = assignments.find((item) => item.id === assignmentId);
-            const structured =
-                assignment?.assignment_type === "multiple_choice" ||
-                assignment?.assignment_type === "mixed";
             const { submission } = await submitAssignmentAnswer(
                 assignmentId,
-                structured ? "" : answers[assignmentId] ?? "",
-                structured ? answers[assignmentId] ?? [] : undefined,
+                assignment?.quiz_questions?.length ? "" : answers[assignmentId] ?? "",
+                assignment?.quiz_questions?.length
+                    ? answers[assignmentId] ?? []
+                    : undefined,
             );
             setAssignments((current) =>
                 current.map((assignment) =>
@@ -376,7 +477,13 @@ export default function AssignmentsView({ user }) {
                                               createQuestion("multiple_choice"),
                                               createQuestion("written"),
                                           ]
-                                        : [createQuestion("multiple_choice")],
+                                        : [
+                                              createQuestion(
+                                                  nextType === "written"
+                                                      ? "written"
+                                                      : "multiple_choice",
+                                              ),
+                                          ],
                                 );
                             }}
                         >
@@ -387,13 +494,12 @@ export default function AssignmentsView({ user }) {
                             ))}
                         </select>
                     </label>
-                    {assignmentType !== "written" && (
-                        <section className="quizBuilder" aria-label="Câu hỏi trắc nghiệm">
+                    <section className="quizBuilder" aria-label="Câu hỏi bài tập">
                             <h3>Câu hỏi và đáp án</h3>
                             <p className="muted">
-                                Tổng điểm tối đa phần trắc nghiệm phải đúng 10.
-                                Đáp án đúng chỉ dùng để chấm, học sinh không nhìn
-                                thấy trước khi nộp.
+                                Tổng điểm bài phải đúng 10. Đáp án và đáp án tham
+                                khảo được giữ riêng, không hiển thị cho học sinh
+                                trước khi nộp.
                             </p>
                             <label>
                                 Cách chia điểm
@@ -404,16 +510,16 @@ export default function AssignmentsView({ user }) {
                                     }
                                 >
                                     <option value="equal">
-                                        Cùng điểm cho mỗi câu trắc nghiệm
+                                        Cùng điểm cho mỗi câu
                                     </option>
                                     <option value="custom">
-                                        Tự đặt điểm từng câu
+                                        Tự đặt điểm mỗi câu
                                     </option>
                                 </select>
                             </label>
                             {pointsMode === "equal" && (
                                 <label>
-                                    Điểm mỗi câu trắc nghiệm
+                                    Điểm mỗi câu
                                     <input
                                         type="number"
                                         min="0.01"
@@ -438,7 +544,7 @@ export default function AssignmentsView({ user }) {
                                 }
                                 role="status"
                             >
-                                Tổng điểm tối đa phần trắc nghiệm:{" "}
+                                Tổng điểm tối đa:{" "}
                                 {totalQuizPoints(
                                     questions,
                                     pointsMode,
@@ -664,40 +770,54 @@ export default function AssignmentsView({ user }) {
                                                     Thêm lựa chọn
                                                 </button>
                                             )}
-                                            {pointsMode === "custom" && (
-                                                <label>
-                                                    Điểm câu này
-                                                    <input
-                                                        type="number"
-                                                        min="0.01"
-                                                        max="10"
-                                                        step="0.01"
-                                                        value={question.points}
-                                                        onChange={(event) =>
-                                                            setQuestions((current) =>
-                                                                current.map(
-                                                                    (item, index) =>
-                                                                        index ===
-                                                                        questionIndex
-                                                                            ? {
-                                                                                  ...item,
-                                                                                  points: event
-                                                                                      .target
-                                                                                      .value,
-                                                                              }
-                                                                            : item,
-                                                                ),
-                                                            )
-                                                        }
-                                                    />
-                                                </label>
-                                            )}
                                         </>
                                     ) : (
-                                        <p className="muted">
-                                            Câu tự luận sẽ được giáo viên chấm
-                                            thủ công.
-                                        </p>
+                                        <label>
+                                            Đáp án tham khảo để AI chấm
+                                            <textarea
+                                                maxLength={10000}
+                                                required
+                                                value={question.answerKey}
+                                                onChange={(event) =>
+                                                    setQuestions((current) =>
+                                                        current.map((item, index) =>
+                                                            index === questionIndex
+                                                                ? {
+                                                                      ...item,
+                                                                      answerKey:
+                                                                          event.target.value,
+                                                                  }
+                                                                : item,
+                                                        ),
+                                                    )
+                                                }
+                                                placeholder="Nhập đáp án đúng, các bước giải hoặc những ý cần có…"
+                                            />
+                                        </label>
+                                    )}
+                                    {pointsMode === "custom" && (
+                                        <label>
+                                            Điểm câu này
+                                            <input
+                                                type="number"
+                                                min="0.01"
+                                                max="10"
+                                                step="0.01"
+                                                value={question.points}
+                                                onChange={(event) =>
+                                                    setQuestions((current) =>
+                                                        current.map((item, index) =>
+                                                            index === questionIndex
+                                                                ? {
+                                                                      ...item,
+                                                                      points: event.target.value,
+                                                                  }
+                                                                : item,
+                                                        ),
+                                                    )
+                                                }
+                                            />
+                                        </label>
                                     )}
                                     {questions.length > 1 && (
                                         <button
@@ -725,17 +845,16 @@ export default function AssignmentsView({ user }) {
                                     setQuestions((current) => [
                                         ...current,
                                         createQuestion(
-                                            assignmentType === "mixed"
-                                                ? "written"
-                                                : "multiple_choice",
+                                            assignmentType === "multiple_choice"
+                                                ? "multiple_choice"
+                                                : "written",
                                         ),
                                     ])
                                 }
                             >
                                 Thêm câu hỏi
                             </button>
-                        </section>
-                    )}
+                    </section>
                     <button className="primary" disabled={creating}>
                         {creating ? "Đang tạo…" : "Đăng bài tập"}
                     </button>
@@ -788,7 +907,7 @@ export default function AssignmentsView({ user }) {
                             </span>
                             {user?.role === "student" && (
                                 <div className="studentAnswer">
-                                    {assignment.assignment_type === "written" ? (
+                                    {!assignment.quiz_questions?.length ? (
                                         <label>
                                             Bài làm của em
                                             <textarea
@@ -802,8 +921,8 @@ export default function AssignmentsView({ user }) {
                                                     }))
                                                 }
                                                 placeholder="Trình bày các bước làm…"
-                                                disabled={Boolean(
-                                                    assignment.submission?.teacher_feedback,
+                                                disabled={isSubmissionReviewed(
+                                                    assignment.submission,
                                                 )}
                                             />
                                         </label>
@@ -834,8 +953,8 @@ export default function AssignmentsView({ user }) {
                                                                             ] ===
                                                                             optionIndex
                                                                         }
-                                                                        disabled={Boolean(
-                                                                            assignment.submission?.teacher_feedback,
+                                                                        disabled={isSubmissionReviewed(
+                                                                            assignment.submission,
                                                                         )}
                                                                         onChange={() =>
                                                                             setAnswers(
@@ -872,8 +991,8 @@ export default function AssignmentsView({ user }) {
                                                                 ]?.[questionIndex] ?? ""
                                                             }
                                                             placeholder="Nhập câu trả lời tự luận…"
-                                                            disabled={Boolean(
-                                                                assignment.submission?.teacher_feedback,
+                                                            disabled={isSubmissionReviewed(
+                                                                assignment.submission,
                                                             )}
                                                             onChange={(event) =>
                                                                 setAnswers(
@@ -911,8 +1030,8 @@ export default function AssignmentsView({ user }) {
                                         }
                                         disabled={
                                             savingId === assignment.id ||
-                                            Boolean(
-                                                assignment.submission?.teacher_feedback,
+                                            isSubmissionReviewed(
+                                                assignment.submission,
                                             )
                                         }
                                     >
@@ -928,16 +1047,27 @@ export default function AssignmentsView({ user }) {
                                             undefined && (
                                             <div className="teacherFeedback assignmentScore">
                                                 <strong>
-                                                    Điểm trắc nghiệm:{" "}
-                                                    {assignment.submission.auto_score}/
+                                                    Điểm bài:{" "}
+                                                    {assignment.submission.teacher_score ??
+                                                        assignment.submission.auto_score}/
                                                     {assignment.submission.auto_max_score}
                                                 </strong>
-                                                {assignment.assignment_type ===
-                                                    "mixed" && (
+                                                {assignment.quiz_questions?.some(
+                                                    (question) =>
+                                                        question.type === "written",
+                                                ) && (
                                                     <p>
-                                                        Phần tự luận đang chờ giáo
-                                                        viên chấm.
+                                                        Điểm AI là gợi ý; giáo viên
+                                                        có thể chấm lại.
                                                     </p>
+                                                )}
+                                                {assignment.submission.auto_feedback?.map(
+                                                    (item) => (
+                                                        <p key={item.questionIndex}>
+                                                            Câu {item.questionIndex + 1} — AI:{" "}
+                                                            {item.feedback}
+                                                        </p>
+                                                    ),
                                                 )}
                                             </div>
                                         )}

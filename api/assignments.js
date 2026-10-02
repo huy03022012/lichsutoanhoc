@@ -12,7 +12,6 @@ const CREATORS = ["teacher", "admin", "super_admin"];
 const ASSIGNMENT_TYPES = new Set(["multiple_choice", "written", "mixed"]);
 
 export function validateQuizQuestions(value, assignmentType, pointsMode, commonPoints) {
-    if (assignmentType === "written") return [];
     if (!Array.isArray(value) || value.length < 1 || value.length > 50) {
         throw new HttpError(400, "Bài cần có từ 1 đến 50 câu hỏi.");
     }
@@ -27,7 +26,28 @@ export function validateQuizQuestions(value, assignmentType, pointsMode, commonP
         if (!["multiple_choice", "written"].includes(type) || !prompt || prompt.length > 2000) {
             throw new HttpError(400, "Mỗi câu hỏi cần có nội dung từ 1 đến 2.000 ký tự.");
         }
-        if (type === "written") return { type, prompt };
+        const points = pointsMode === "equal"
+            ? Number(commonPoints)
+            : Number(item.points);
+        if (!Number.isFinite(points) || points <= 0 || points > 10) {
+            throw new HttpError(400, "Điểm mỗi câu phải lớn hơn 0 và tối đa là 10.");
+        }
+        if (type === "written") {
+            const answerKey =
+                typeof item.answerKey === "string" ? item.answerKey.trim() : "";
+            if (!answerKey || answerKey.length > 10000) {
+                throw new HttpError(
+                    400,
+                    "Mỗi câu tự luận cần đáp án tham khảo từ 1 đến 10.000 ký tự.",
+                );
+            }
+            return {
+                type,
+                prompt,
+                answerKey,
+                points: Math.round(points * 100) / 100,
+            };
+        }
 
         if (
             !Array.isArray(item.options) ||
@@ -49,12 +69,6 @@ export function validateQuizQuestions(value, assignmentType, pointsMode, commonP
         ) {
             throw new HttpError(400, "Hãy chọn đáp án đúng cho từng câu trắc nghiệm.");
         }
-        const points = pointsMode === "equal"
-            ? Number(commonPoints)
-            : Number(item.points);
-        if (!Number.isFinite(points) || points <= 0 || points > 10) {
-            throw new HttpError(400, "Điểm mỗi câu trắc nghiệm phải lớn hơn 0 và tối đa là 10.");
-        }
         return {
             type,
             prompt,
@@ -66,22 +80,29 @@ export function validateQuizQuestions(value, assignmentType, pointsMode, commonP
     const multipleChoiceQuestions = questions.filter(
         (question) => question.type === "multiple_choice",
     );
-    if (!multipleChoiceQuestions.length) {
+    if (assignmentType === "multiple_choice" && !multipleChoiceQuestions.length) {
         throw new HttpError(400, "Bài cần có ít nhất một câu trắc nghiệm.");
     }
     if (
-        assignmentType === "mixed" &&
-        !questions.some((question) => question.type === "written")
+        assignmentType === "written" &&
+        questions.some((question) => question.type !== "written")
     ) {
-        throw new HttpError(400, "Bài tổng hợp cần có ít nhất một câu tự luận.");
+        throw new HttpError(400, "Bài tự luận chỉ được chứa câu tự luận.");
+    }
+    if (
+        assignmentType === "mixed" &&
+        (!multipleChoiceQuestions.length ||
+            !questions.some((question) => question.type === "written"))
+    ) {
+        throw new HttpError(400, "Bài tổng hợp cần có cả câu trắc nghiệm và câu tự luận.");
     }
     const totalPoints = Math.round(
-        multipleChoiceQuestions.reduce((total, question) => total + question.points, 0) * 100,
+        questions.reduce((total, question) => total + question.points, 0) * 100,
     );
     if (totalPoints !== 1000) {
         throw new HttpError(
             400,
-            `Tổng điểm trắc nghiệm tối đa hiện là ${(totalPoints / 100).toFixed(2)}; tổng điểm tối đa phải là 10.`,
+            `Tổng điểm tối đa hiện là ${(totalPoints / 100).toFixed(2)}; tổng điểm tối đa phải là 10.`,
         );
     }
     return questions;
@@ -120,13 +141,17 @@ export default async function handler(req, res) {
                 quiz_questions:
                     user.role === "student"
                         ? assignment.quiz_questions.map(
-                              ({ correctOptionIndex, ...question }) => question,
+                              ({
+                                  correctOptionIndex,
+                                  answerKey,
+                                  ...question
+                              }) => question,
                           )
                         : assignment.quiz_questions,
             }));
             const { data: ownSubmissions, error: submissionError } = await db
                 .from("math_submissions")
-                .select("assignment_id, answer, teacher_feedback, auto_score, auto_max_score, submitted_at, updated_at")
+                .select("assignment_id, answer, teacher_feedback, auto_score, auto_max_score, auto_feedback, teacher_score, submitted_at, updated_at")
                 .eq("student_id", user.id);
             if (submissionError) throw submissionError;
             const submissions = new Map(
@@ -190,7 +215,7 @@ export default async function handler(req, res) {
             throw new HttpError(400, "Loại bài tập không hợp lệ.");
         }
         const pointsMode = req.body?.pointsMode;
-        if (assignmentType !== "written" && !["equal", "custom"].includes(pointsMode)) {
+        if (!["equal", "custom"].includes(pointsMode)) {
             throw new HttpError(400, "Cách tính điểm không hợp lệ.");
         }
         const commonPoints = req.body?.commonPoints;
