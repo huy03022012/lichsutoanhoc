@@ -52,7 +52,6 @@ function SubmissionReview({ assignment, onError }) {
     const [feedbackDrafts, setFeedbackDrafts] = useState({});
     const [loading, setLoading] = useState(true);
     const [savingId, setSavingId] = useState("");
-    const [deletingId, setDeletingId] = useState("");
 
     useEffect(() => {
         let active = true;
@@ -194,6 +193,7 @@ export default function AssignmentsView({ user }) {
     const [pointsMode, setPointsMode] = useState("equal");
     const [commonPoints, setCommonPoints] = useState("2");
     const [savingId, setSavingId] = useState("");
+    const [deletingId, setDeletingId] = useState("");
     const canCreate = STAFF_ROLES.includes(user?.role);
     const canReview = user && STAFF_ROLES.includes(user.role);
 
