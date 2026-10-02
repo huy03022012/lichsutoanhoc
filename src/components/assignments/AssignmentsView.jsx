@@ -45,12 +45,8 @@ function totalQuizPoints(questions, pointsMode, commonPoints) {
     return Math.round(points * 100) / 100;
 }
 
-function isSubmissionReviewed(submission) {
-    return (
-        Boolean(submission?.teacher_feedback) ||
-        (submission?.teacher_score !== null &&
-            submission?.teacher_score !== undefined)
-    );
+function hasSubmitted(submission) {
+    return Boolean(submission);
 }
 
 function SubmissionReview({ assignment, onError }) {
@@ -921,7 +917,7 @@ export default function AssignmentsView({ user }) {
                                                     }))
                                                 }
                                                 placeholder="Trình bày các bước làm…"
-                                                disabled={isSubmissionReviewed(
+                                                disabled={hasSubmitted(
                                                     assignment.submission,
                                                 )}
                                             />
@@ -953,7 +949,7 @@ export default function AssignmentsView({ user }) {
                                                                             ] ===
                                                                             optionIndex
                                                                         }
-                                                                        disabled={isSubmissionReviewed(
+                                                                        disabled={hasSubmitted(
                                                                             assignment.submission,
                                                                         )}
                                                                         onChange={() =>
@@ -991,7 +987,7 @@ export default function AssignmentsView({ user }) {
                                                                 ]?.[questionIndex] ?? ""
                                                             }
                                                             placeholder="Nhập câu trả lời tự luận…"
-                                                            disabled={isSubmissionReviewed(
+                                                            disabled={hasSubmitted(
                                                                 assignment.submission,
                                                             )}
                                                             onChange={(event) =>
@@ -1030,15 +1026,13 @@ export default function AssignmentsView({ user }) {
                                         }
                                         disabled={
                                             savingId === assignment.id ||
-                                            isSubmissionReviewed(
-                                                assignment.submission,
-                                            )
+                                            hasSubmitted(assignment.submission)
                                         }
                                     >
                                         {savingId === assignment.id
                                             ? "Đang nộp…"
-                                            : assignment.submission
-                                              ? "Cập nhật bài làm"
+                                            : hasSubmitted(assignment.submission)
+                                              ? "Đã nộp bài"
                                               : "Nộp bài"}
                                     </button>
                                     {assignment.submission?.auto_score !==

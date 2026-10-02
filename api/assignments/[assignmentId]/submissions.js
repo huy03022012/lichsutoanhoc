@@ -32,6 +32,7 @@ export default async function handler(req, res) {
             let autoScore = null;
             let autoMaxScore = null;
             let autoFeedback = [];
+            let essayQuestions = [];
             if (assignment.quiz_questions?.length) {
                 const answers = req.body?.answers;
                 if (
@@ -42,7 +43,6 @@ export default async function handler(req, res) {
                 }
                 let score = 0;
                 let maxScore = 0;
-                const essayQuestions = [];
                 for (const [index, question] of assignment.quiz_questions.entries()) {
                     const response = answers[index];
                     if (question.type === "multiple_choice") {
@@ -85,14 +85,12 @@ export default async function handler(req, res) {
                         });
                     }
                 }
-                autoFeedback = await gradeEssayQuestions(essayQuestions);
-                score += autoFeedback.reduce((total, result) => total + result.score, 0);
-                autoScore = Math.round(score * 100) / 100;
-                autoMaxScore = Math.round(maxScore * 100) / 100;
                 answer = JSON.stringify({ answers });
                 if (answer.length > 10000) {
                     throw new HttpError(400, "Câu trả lời quá dài.");
                 }
+                autoScore = Math.round(score * 100) / 100;
+                autoMaxScore = Math.round(maxScore * 100) / 100;
             } else {
                 answer = typeof req.body?.answer === "string" ? req.body.answer.trim() : "";
                 if (!answer || answer.length > 10000) {
@@ -101,20 +99,38 @@ export default async function handler(req, res) {
             }
             const { data: existingSubmission, error: existingError } = await db
                 .from("math_submissions")
-                .select("teacher_feedback, teacher_score")
+                .select("id, answer, teacher_feedback, auto_score, auto_max_score, auto_feedback, teacher_score, submitted_at, updated_at")
                 .eq("assignment_id", assignmentId)
                 .eq("student_id", user.id)
                 .maybeSingle();
             if (existingError) throw existingError;
-            if (
-                existingSubmission?.teacher_feedback ||
-                (existingSubmission?.teacher_score !== null &&
-                    existingSubmission?.teacher_score !== undefined)
-            ) {
-                throw new HttpError(
-                    409,
-                    "Bài đã được giáo viên chấm hoặc nhận xét nên không thể sửa câu trả lời.",
+            if (existingSubmission) {
+                if (existingSubmission.answer !== answer) {
+                    throw new HttpError(
+                        409,
+                        "Bài đã nộp rồi nên không thể sửa hoặc nộp lại.",
+                    );
+                }
+                if (
+                    existingSubmission.teacher_feedback ||
+                    (existingSubmission.teacher_score !== null &&
+                        existingSubmission.teacher_score !== undefined) ||
+                    (existingSubmission.auto_score !== null &&
+                        existingSubmission.auto_score !== undefined) ||
+                    !essayQuestions.length
+                ) {
+                    return res.status(200).json({
+                        submission: existingSubmission,
+                    });
+                }
+            }
+            if (essayQuestions.length) {
+                autoFeedback = await gradeEssayQuestions(essayQuestions);
+                score += autoFeedback.reduce(
+                    (total, result) => total + result.score,
+                    0,
                 );
+                autoScore = Math.round(score * 100) / 100;
             }
             const { data: submission, error } = await db
                 .from("math_submissions")
