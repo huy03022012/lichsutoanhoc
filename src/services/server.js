@@ -5,6 +5,10 @@ import { GoogleGenAI } from "@google/genai";
 import { lessons, quiz, timeline } from "../data/content.js";
 import { AI_SYSTEM_INSTRUCTION } from "./aiPrompt.js";
 import { validateAiImage } from "./aiImage.js";
+import accountHandler from "../../api/auth.js";
+import managedUsersHandler from "../../api/admin/users.js";
+import assignmentsHandler from "../../api/assignments.js";
+import assignmentSubmissionsHandler from "../../api/assignments/[assignmentId]/submissions.js";
 import {
     existsSync,
     mkdirSync,
@@ -131,6 +135,14 @@ app.post("/api/progress/quiz", (req, res) => {
         ),
     });
 });
+
+app.all("/api/auth", accountHandler);
+app.all("/api/admin/users", managedUsersHandler);
+app.all("/api/assignments", assignmentsHandler);
+app.all(
+    "/api/assignments/:assignmentId/submissions",
+    assignmentSubmissionsHandler,
+);
 
 // Chỉ backend mới đọc biến khóa Gemini; không dùng tiền tố VITE_.
 const ai = process.env.GEMINI_API_KEY

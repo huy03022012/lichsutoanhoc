@@ -13,6 +13,9 @@ Website học tập tương tác về lịch sử Toán học, dùng React/Vite 
 - `api/`: Vercel Functions; Vercel dùng các handler này thay cho Express `app.listen`.
 - `src/services/aiPrompt.js`: giới hạn chủ đề và quy tắc hướng dẫn của AI.
 - `src/services/aiImage.js`: loại ảnh, giới hạn dung lượng và kiểm tra payload gửi tới AI.
+- `src/services/accountAuth.js`: mã hóa mật khẩu, phiên đăng nhập cookie và kiểm tra quyền ở backend.
+- `src/components/assignments/`: giao diện tạo/làm bài tập và nhận xét bài nộp.
+- `supabase/schema.sql`: các bảng tài khoản, phiên đăng nhập, bài tập và bài nộp.
 - `index.html`: ngôn ngữ trang, metadata trình duyệt và điểm gắn React.
 - `public/favicon.svg`: logo nhỏ hiển thị trên tab trình duyệt.
 - `.gitignore`: các file/mục không được đưa vào Git.
@@ -70,7 +73,14 @@ Import repository vào Vercel; cấu hình build là `npm run build`, output là
 
 Backend cung cấp `GET /api/content`, `GET /api/progress`, `POST /api/progress/lessons/:lessonId` và `POST /api/progress/quiz`. Tiến độ được lưu trong `data/progress.json` (thư mục này không đưa vào Git); có thể đặt `PROGRESS_FILE` để dùng đường dẫn trên ổ đĩa bền vững.
 
-**Giới hạn hiện tại:** project chưa có đăng ký/đăng nhập hoặc phân quyền, vì vậy tiến độ JSON hiện chưa thể tách theo tài khoản và không phù hợp triển khai nhiều người dùng. Cần xây dựng authentication và lưu trữ theo user trước khi dùng như sản phẩm có nhiều tài khoản.
+## Tài khoản, phân quyền và bài tập
+Hệ thống dùng Supabase làm cơ sở dữ liệu; mật khẩu được băm scrypt ở backend, còn phiên đăng nhập dùng cookie HttpOnly. Chạy `supabase/schema.sql` trong SQL Editor, sau đó cấu hình `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY` ở máy local và Vercel. Service-role key chỉ được đặt ở backend, tuyệt đối không dùng biến `VITE_*`.
+
+Đăng ký công khai luôn tạo tài khoản học sinh; username dài 3–24 ký tự, hỗ trợ chữ tiếng Việt và khoảng trắng (các khoảng trắng liên tiếp được gộp), mật khẩu tối thiểu 8 ký tự. Tài khoản đầu tiên cần tự đăng ký, rồi chủ dự án dùng SQL Editor để cấp quyền super admin: `update public.account_users set role = 'super_admin' where username = 'ten_dang_nhap';`. Không dùng email nên không có tự khôi phục mật khẩu; admin có thể đổi username/mật khẩu cho giáo viên và học sinh, super admin có thể đổi thông tin của mọi vai trò.
+
+Giáo viên, admin và super admin có thể tạo bài tập. Học sinh đăng nhập để làm/nộp bài; giáo viên xem và nhận xét bài nộp của bài tập do mình tạo, admin/super admin có thể quản lý toàn bộ.
+
+Để cấu hình local, sao chép `.env.example` thành `.env`, điền Project URL và service-role/secret key của Supabase, rồi khởi động lại `npm run server`. Trên Vercel, thêm cùng hai biến trong **Settings → Environment Variables** (không có tiền tố `VITE_`) và redeploy. Sau khi chạy schema, đăng ký tài khoản đầu tiên trên website rồi chạy lệnh SQL ở trên để cấp super admin; không chia sẻ hoặc commit secret key.
 
 ## Chạy production
 ```bash

@@ -6,8 +6,13 @@ import {
 } from "./services/aiImage.js";
 import {
     chatWithAI,
+    getAccount,
     getContent,
+    submitAccountAction,
 } from "./services/api.js";
+import AccountDialog from "./components/auth/AccountDialog.jsx";
+import UserManagementView from "./components/admin/UserManagementView.jsx";
+import AssignmentsView from "./components/assignments/AssignmentsView.jsx";
 
 // Danh sách tab được dùng để vẽ thanh điều hướng và chọn màn hình tương ứng.
 const navItems = [
@@ -15,6 +20,7 @@ const navItems = [
     ["library", "Thư viện"],
     ["timeline", "Dòng thời gian"],
     ["ai", "AI trợ giảng"],
+    ["assignments", "Bài tập"],
 ];
 
 // localStorage giữ 10 cuộc chat trên trình duyệt kể cả sau khi đóng website.
@@ -1012,6 +1018,10 @@ function App() {
     const [selectedLesson, setSelectedLesson] = useState(null);
     const [content, setContent] = useState(null);
     const [error, setError] = useState("");
+    const [user, setUser] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
+    const [authDialogOpen, setAuthDialogOpen] = useState(false);
+    const [authNotice, setAuthNotice] = useState("");
 
     // Tải nội dung ban đầu một lần; trang có trạng thái tải và lỗi riêng.
     useEffect(() => {
@@ -1019,6 +1029,37 @@ function App() {
             .then(setContent)
             .catch((err) => setError(err.message));
     }, []);
+
+    useEffect(() => {
+        let active = true;
+        getAccount()
+            .then((result) => {
+                if (!active) return;
+                setUser(result.user);
+                if (result.notice) setAuthNotice(result.notice);
+            })
+            .catch((requestError) => {
+                if (!active) return;
+                setAuthNotice(requestError.message);
+            })
+            .finally(() => {
+                if (active) setAuthLoading(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    async function signOut() {
+        setAuthNotice("");
+        try {
+            await submitAccountAction("logout");
+            setUser(null);
+            setView("home");
+        } catch (requestError) {
+            setAuthNotice(requestError.message);
+        }
+    }
 
     // Cho phép đóng menu mobile bằng phím Escape.
     useEffect(() => {
@@ -1073,11 +1114,52 @@ function App() {
         ),
         timeline: <TimelineView timeline={content.timeline} />,
         ai: <AIView />,
+        assignments: user ? (
+            <AssignmentsView user={user} />
+        ) : (
+            <section className="view active">
+                <Header
+                    title="Bài tập Toán học"
+                    text="Đăng nhập để xem, làm và nộp bài tập."
+                />
+                <button
+                    className="primary"
+                    type="button"
+                    onClick={() => setAuthDialogOpen(true)}
+                >
+                    Đăng nhập hoặc đăng ký
+                </button>
+            </section>
+        ),
+        users:
+            user && ["admin", "super_admin"].includes(user.role) ? (
+                <UserManagementView
+                    user={user}
+                    onCurrentUserUpdated={setUser}
+                />
+            ) : (
+                <Home
+                    setView={setView}
+                    lessons={content.lessons}
+                    timeline={content.timeline}
+                    onReadMore={openLesson}
+                />
+            ),
         lesson: selectedLesson ? (
             <LessonDetail lesson={selectedLesson} onBack={returnToLibrary} />
         ) : (
             <Library lessons={content.lessons} onReadMore={openLesson} />
         ),
+    };
+    const visibleNavItems =
+        user && ["admin", "super_admin"].includes(user.role)
+            ? [...navItems, ["users", "Quản lý tài khoản"]]
+            : navItems;
+    const roleLabels = {
+        student: "Học sinh",
+        teacher: "Giáo viên",
+        admin: "Admin",
+        super_admin: "Super admin",
     };
 
     // Điều hướng phía client: đổi nội dung trang mà không tải lại toàn bộ website.
@@ -1108,7 +1190,7 @@ function App() {
                     id="main-navigation"
                     className={isMobileMenuOpen ? "mobileMenuOpen" : ""}
                 >
-                    {navItems.map(([id, label]) => (
+                    {visibleNavItems.map(([id, label]) => (
                         <button
                             key={id}
                             onClick={() => {
@@ -1125,6 +1207,25 @@ function App() {
                             {label}
                         </button>
                     ))}
+                    <div className="mobileAccountActions">
+                        {user ? (
+                            <>
+                                <span>
+                                    {user.username} · {roleLabels[user.role]}
+                                </span>
+                                <button type="button" onClick={signOut}>
+                                    Đăng xuất
+                                </button>
+                            </>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setAuthDialogOpen(true)}
+                            >
+                                Đăng nhập / Đăng ký
+                            </button>
+                        )}
+                    </div>
                 </nav>
                 {isMobileMenuOpen && (
                     <button
@@ -1134,8 +1235,52 @@ function App() {
                         onClick={() => setIsMobileMenuOpen(false)}
                     />
                 )}
+                <div className="desktopAccountActions">
+                    {authLoading ? (
+                        <span className="muted">Đang tải tài khoản…</span>
+                    ) : user ? (
+                        <>
+                            <span className="accountIdentity">
+                                {user.username} · {roleLabels[user.role]}
+                            </span>
+                            <button
+                                className="secondary"
+                                type="button"
+                                onClick={signOut}
+                            >
+                                Đăng xuất
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            className="accountButton"
+                            type="button"
+                            onClick={() => setAuthDialogOpen(true)}
+                        >
+                            Đăng nhập / Đăng ký
+                        </button>
+                    )}
+                </div>
             </header>
-            <main>{pages[view]}</main>
+            <main>
+                {authNotice && (
+                    <p className="authNotice" role="alert">
+                        {authNotice}
+                    </p>
+                )}
+                {pages[view]}
+            </main>
+            {authDialogOpen && (
+                <AccountDialog
+                    onClose={() => setAuthDialogOpen(false)}
+                    onAuthenticated={(signedInUser) => {
+                        setUser(signedInUser);
+                        setAuthDialogOpen(false);
+                        setAuthNotice("");
+                        setView("home");
+                    }}
+                />
+            )}
             <footer className="footer">
                 <div>MathHistory AI · Học liệu lịch sử Toán học</div>
                 <small className="footerAuthor">by Lê Hồ Hoàng Huy</small>

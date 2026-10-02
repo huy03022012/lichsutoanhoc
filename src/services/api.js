@@ -34,6 +34,74 @@ export function submitQuiz(selectedOption) {
     });
 }
 
+export function getAccount() {
+    return request("/auth");
+}
+
+export function submitAccountAction(action, credentials = {}) {
+    return request("/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...credentials }),
+    });
+}
+
+export function getManagedUsers() {
+    return request("/admin/users");
+}
+
+export function updateManagedUser(userId, changes) {
+    return request("/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, changes }),
+    });
+}
+
+export function getAssignments() {
+    return request("/assignments");
+}
+
+export function createAssignment(title, description) {
+    return request("/assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description }),
+    });
+}
+
+export function getAssignmentSubmissions(assignmentId) {
+    return request(
+        `/assignments/${encodeURIComponent(assignmentId)}/submissions`,
+    );
+}
+
+export function submitAssignmentAnswer(assignmentId, answer) {
+    return request(
+        `/assignments/${encodeURIComponent(assignmentId)}/submissions`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ answer }),
+        },
+    );
+}
+
+export function reviewAssignmentSubmission(
+    assignmentId,
+    submissionId,
+    feedback,
+) {
+    return request(
+        `/assignments/${encodeURIComponent(assignmentId)}/submissions`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ submissionId, feedback }),
+        },
+    );
+}
+
 // Gửi câu hỏi đến API serverless hoặc Express; khóa AI không nằm trong frontend.
 export async function chatWithAI(message, image = null, checkWork = false) {
     return request("/ai/chat", {
