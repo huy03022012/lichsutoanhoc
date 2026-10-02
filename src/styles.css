@@ -470,12 +470,99 @@ nav button:hover {
 .assignmentForm {
     margin-bottom: 22px;
 }
+.assignmentForm > label select,
+.assignmentForm > label input,
+.quizQuestionEditor label input,
+.quizQuestionEditor label textarea,
+.quizQuestionEditor label select,
+.studentQuizQuestion > textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    padding: 11px 12px;
+    background: var(--bg);
+    color: var(--text);
+}
+.quizBuilder {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface2);
+}
+.quizBuilder h3,
+.quizBuilder p {
+    margin: 0;
+}
+.quizQuestionEditor {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    margin: 0;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+.quizQuestionEditor legend {
+    padding: 0 6px;
+    color: var(--primary);
+    font-weight: 800;
+}
+.quizOptionEditor {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: end;
+    gap: 10px;
+}
+.correctOptionChoice,
+.quizStudentOption {
+    display: flex !important;
+    align-items: center;
+    gap: 7px !important;
+    font-weight: 500 !important;
+}
+.correctOptionChoice input,
+.quizStudentOption input {
+    width: auto;
+}
+.quizQuestionEditor .correctOptionChoice input {
+    width: auto;
+}
+.studentQuizQuestion {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface2);
+}
+.assignmentScore {
+    color: var(--primary);
+    font-weight: 800;
+}
+.submissionAnswerList {
+    display: grid;
+    gap: 12px;
+}
+.submissionAnswerList p {
+    margin: 6px 0 0;
+    white-space: pre-wrap;
+}
 .assignmentForm h2,
 .assignmentCard h2 {
     margin: 0;
 }
 .assignmentMeta {
     color: var(--muted);
+}
+.assignmentCardActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.dangerButton {
+    color: #c0392b;
 }
 .assignmentDescription,
 .submissionAnswer {
@@ -1290,6 +1377,10 @@ hr {
     }
     .grid {
         grid-template-columns: 1fr;
+    }
+    .quizOptionEditor {
+        grid-template-columns: 1fr;
+        align-items: stretch;
     }
     .hero h1 {
         font-size: 43px;

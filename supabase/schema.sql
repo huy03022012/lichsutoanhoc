@@ -102,6 +102,21 @@ create table if not exists public.math_assignments (
     updated_at timestamptz not null default now()
 );
 
+alter table public.math_assignments
+    add column if not exists assignment_type text not null default 'written';
+alter table public.math_assignments
+    add column if not exists quiz_questions jsonb not null default '[]'::jsonb;
+alter table public.math_assignments
+    drop constraint if exists math_assignments_assignment_type_check;
+alter table public.math_assignments
+    add constraint math_assignments_assignment_type_check
+    check (assignment_type in ('multiple_choice', 'written', 'mixed'));
+alter table public.math_assignments
+    drop constraint if exists math_assignments_quiz_questions_array_check;
+alter table public.math_assignments
+    add constraint math_assignments_quiz_questions_array_check
+    check (jsonb_typeof(quiz_questions) = 'array');
+
 create index if not exists math_assignments_created_at_idx
     on public.math_assignments (created_at desc);
 
@@ -111,11 +126,18 @@ create table if not exists public.math_submissions (
     student_id uuid not null references public.account_users (id) on delete cascade,
     answer text not null check (char_length(answer) between 1 and 10000),
     teacher_feedback text,
+    auto_score numeric(5, 2),
+    auto_max_score numeric(5, 2),
     reviewed_by uuid references public.account_users (id),
     submitted_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     unique (assignment_id, student_id)
 );
+
+alter table public.math_submissions
+    add column if not exists auto_score numeric(5, 2);
+alter table public.math_submissions
+    add column if not exists auto_max_score numeric(5, 2);
 
 create index if not exists math_submissions_assignment_id_idx
     on public.math_submissions (assignment_id, submitted_at desc);

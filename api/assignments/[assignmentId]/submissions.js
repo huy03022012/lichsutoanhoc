@@ -18,7 +18,7 @@ export default async function handler(req, res) {
             req.params?.assignmentId ?? req.query?.assignmentId;
         const { data: assignment, error: assignmentError } = await db
             .from("math_assignments")
-            .select("id, created_by")
+            .select("id, created_by, assignment_type, quiz_questions")
             .eq("id", assignmentId)
             .maybeSingle();
         if (assignmentError) throw assignmentError;
@@ -27,10 +27,47 @@ export default async function handler(req, res) {
         if (req.method === "POST") {
             ensureSameOrigin(req);
             requireRole(user, ["student"]);
-            const answer =
-                typeof req.body?.answer === "string" ? req.body.answer.trim() : "";
-            if (!answer || answer.length > 10000) {
-                throw new HttpError(400, "Câu trả lời cần từ 1 đến 10.000 ký tự.");
+            let answer;
+            let autoScore = null;
+            let autoMaxScore = null;
+            if (assignment.assignment_type === "multiple_choice" ||
+                assignment.assignment_type === "mixed") {
+                const answers = req.body?.answers;
+                if (
+                    !Array.isArray(answers) ||
+                    answers.length !== assignment.quiz_questions.length
+                ) {
+                    throw new HttpError(400, "Hãy trả lời đầy đủ các câu hỏi.");
+                }
+                let score = 0;
+                let maxScore = 0;
+                for (const [index, question] of assignment.quiz_questions.entries()) {
+                    const response = answers[index];
+                    if (question.type === "multiple_choice") {
+                        if (
+                            !Number.isInteger(response) ||
+                            response < 0 ||
+                            response >= question.options.length
+                        ) {
+                            throw new HttpError(400, "Hãy chọn đáp án cho từng câu trắc nghiệm.");
+                        }
+                        maxScore += question.points;
+                        if (response === question.correctOptionIndex) score += question.points;
+                    } else if (typeof response !== "string" || !response.trim() || response.length > 10000) {
+                        throw new HttpError(400, "Hãy hoàn thành từng câu tự luận (tối đa 10.000 ký tự).");
+                    }
+                }
+                autoScore = Math.round(score * 100) / 100;
+                autoMaxScore = Math.round(maxScore * 100) / 100;
+                answer = JSON.stringify({ answers });
+                if (answer.length > 10000) {
+                    throw new HttpError(400, "Câu trả lời quá dài.");
+                }
+            } else {
+                answer = typeof req.body?.answer === "string" ? req.body.answer.trim() : "";
+                if (!answer || answer.length > 10000) {
+                    throw new HttpError(400, "Câu trả lời cần từ 1 đến 10.000 ký tự.");
+                }
             }
             const { data: existingSubmission, error: existingError } = await db
                 .from("math_submissions")
@@ -52,6 +89,8 @@ export default async function handler(req, res) {
                         assignment_id: assignmentId,
                         student_id: user.id,
                         answer,
+                        auto_score: autoScore,
+                        auto_max_score: autoMaxScore,
                         teacher_feedback: null,
                         reviewed_by: null,
                         submitted_at: new Date().toISOString(),
@@ -59,7 +98,7 @@ export default async function handler(req, res) {
                     },
                     { onConflict: "assignment_id,student_id" },
                 )
-                .select("id, answer, teacher_feedback, submitted_at, updated_at")
+                .select("id, answer, teacher_feedback, auto_score, auto_max_score, submitted_at, updated_at")
                 .single();
             if (error) throw error;
             return res.status(200).json({ submission });
@@ -69,7 +108,7 @@ export default async function handler(req, res) {
             if (user.role === "student") {
                 const { data, error } = await db
                     .from("math_submissions")
-                    .select("id, answer, teacher_feedback, submitted_at, updated_at")
+                    .select("id, answer, teacher_feedback, auto_score, auto_max_score, submitted_at, updated_at")
                     .eq("assignment_id", assignmentId)
                     .eq("student_id", user.id)
                     .maybeSingle();
@@ -85,7 +124,7 @@ export default async function handler(req, res) {
             }
             const { data: submissions, error } = await db
                 .from("math_submissions")
-                .select("id, student_id, answer, teacher_feedback, submitted_at, updated_at")
+                .select("id, student_id, answer, auto_score, auto_max_score, teacher_feedback, submitted_at, updated_at")
                 .eq("assignment_id", assignmentId)
                 .order("submitted_at", { ascending: false });
             if (error) throw error;

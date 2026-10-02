@@ -122,12 +122,33 @@ export function getAssignments() {
     return request("/assignments");
 }
 
-export function createAssignment(title, description) {
+export function createAssignment(
+    title,
+    description,
+    assignmentType,
+    pointsMode,
+    commonPoints,
+    quizQuestions,
+) {
     return request("/assignments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description }),
+        body: JSON.stringify({
+            title,
+            description,
+            assignmentType,
+            pointsMode,
+            commonPoints,
+            quizQuestions,
+        }),
     });
+}
+
+export function deleteAssignment(assignmentId) {
+    return request(
+        `/assignments?assignmentId=${encodeURIComponent(assignmentId)}`,
+        { method: "DELETE" },
+    );
 }
 
 export function getAssignmentSubmissions(assignmentId) {
@@ -136,13 +157,13 @@ export function getAssignmentSubmissions(assignmentId) {
     );
 }
 
-export function submitAssignmentAnswer(assignmentId, answer) {
+export function submitAssignmentAnswer(assignmentId, answer, answers) {
     return request(
         `/assignments/${encodeURIComponent(assignmentId)}/submissions`,
         {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ answer }),
+            body: JSON.stringify({ answer, answers }),
         },
     );
 }
