@@ -43,15 +43,24 @@ export default async function handler(req, res) {
                     "Chỉ super admin mới được xóa tài khoản trực tiếp.",
                 );
             }
-            const userId = req.query?.userId;
-            if (typeof userId !== "string" || !/^[0-9a-f-]{36}$/i.test(userId)) {
-                throw new HttpError(400, "Tài khoản được chọn không hợp lệ.");
+            const requestedIds = req.body?.userIds ?? req.query?.userId;
+            const userIds = Array.isArray(requestedIds)
+                ? requestedIds
+                : [requestedIds];
+            if (
+                userIds.length === 0 ||
+                userIds.length > 100 ||
+                userIds.some(
+                    (id) => typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id),
+                )
+            ) {
+                throw new HttpError(400, "Danh sách tài khoản được chọn không hợp lệ.");
             }
-            if (userId === currentUser.id) {
+            if (userIds.includes(currentUser.id)) {
                 throw new HttpError(400, "Không thể xóa tài khoản đang đăng nhập.");
             }
-            const { error } = await db.rpc("delete_account_user", {
-                p_user_id: userId,
+            const { error } = await db.rpc("delete_account_users", {
+                p_user_ids: userIds,
             });
             if (error) {
                 throw new HttpError(
@@ -59,7 +68,7 @@ export default async function handler(req, res) {
                     error.message || "Không thể xóa tài khoản này.",
                 );
             }
-            return res.status(200).json({ deletedUserId: userId });
+            return res.status(200).json({ deletedUserIds: userIds });
         }
 
         if (req.method !== "PATCH") {
@@ -67,6 +76,60 @@ export default async function handler(req, res) {
             return res.status(405).json({ error: "Phương thức không được hỗ trợ." });
         }
         ensureSameOrigin(req);
+        if (Array.isArray(req.body?.userIds)) {
+            if (currentUser.role !== "super_admin") {
+                throw new HttpError(
+                    403,
+                    "Chỉ super admin được chỉnh sửa nhiều tài khoản cùng lúc.",
+                );
+            }
+            const userIds = req.body.userIds;
+            if (
+                userIds.length === 0 ||
+                userIds.length > 100 ||
+                userIds.some(
+                    (id) => typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id),
+                ) ||
+                new Set(userIds).size !== userIds.length
+            ) {
+                throw new HttpError(400, "Danh sách tài khoản được chọn không hợp lệ.");
+            }
+            const changes = req.body?.changes;
+            if (!changes || typeof changes !== "object" || Array.isArray(changes)) {
+                throw new HttpError(400, "Thông tin cập nhật không hợp lệ.");
+            }
+            const allowedKeys = new Set(["role", "isLocked"]);
+            if (
+                Object.keys(changes).some((key) => !allowedKeys.has(key)) ||
+                (changes.role === undefined && changes.isLocked === undefined)
+            ) {
+                throw new HttpError(
+                    400,
+                    "Chỉnh sửa hàng loạt chỉ hỗ trợ vai trò và trạng thái khóa.",
+                );
+            }
+            if (
+                changes.isLocked === true &&
+                userIds.includes(currentUser.id)
+            ) {
+                throw new HttpError(
+                    400,
+                    "Không thể khóa tài khoản đang đăng nhập.",
+                );
+            }
+            const { error } = await db.rpc("update_account_users", {
+                p_user_ids: userIds,
+                p_role: changes.role ?? null,
+                p_is_locked: changes.isLocked ?? null,
+            });
+            if (error) {
+                throw new HttpError(
+                    409,
+                    error.message || "Không thể chỉnh sửa các tài khoản đã chọn.",
+                );
+            }
+            return res.status(200).json({ updatedUserIds: userIds });
+        }
         const userId = req.body?.userId;
         if (typeof userId !== "string" || !/^[0-9a-f-]{36}$/i.test(userId)) {
             throw new HttpError(400, "Tài khoản được chọn không hợp lệ.");

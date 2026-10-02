@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import {
     deleteManagedUser,
+    deleteManagedUsers,
     getAccountDeletionRequests,
     getManagedUsers,
+    requestAccountDeletions,
     requestAccountDeletion,
     resolveAccountDeletionRequest,
     updateManagedUser,
+    updateManagedUsers,
 } from "../../services/api.js";
 
 const roleLabels = {
@@ -217,8 +220,7 @@ function ManagedUserRow({
                         disabled={
                             loading ||
                             user.is_root_admin ||
-                            user.id === currentUser.id ||
-                            Boolean(deletionRequest)
+                            user.id === currentUser.id
                         }
                         onClick={deleteUser}
                     >
@@ -321,6 +323,10 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
     const [error, setError] = useState("");
     const [searchInput, setSearchInput] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
+    const [selectedUserIds, setSelectedUserIds] = useState([]);
+    const [bulkRole, setBulkRole] = useState("");
+    const [bulkLock, setBulkLock] = useState("");
+    const [bulkBusy, setBulkBusy] = useState(false);
 
     async function loadUsers() {
         setLoading(true);
@@ -365,6 +371,10 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
         setDeletionRequests((current) => [...current, request]);
     }
 
+    function addDeletionRequests(requests) {
+        setDeletionRequests((current) => [...current, ...requests]);
+    }
+
     function resolveDeletionRequest(request, decision) {
         if (!request) return;
         setDeletionRequests((current) =>
@@ -386,6 +396,94 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
             .toLocaleLowerCase("vi");
         return searchableText.includes(normalizedSearchTerm);
     });
+    const selectedUsers = users.filter((managedUser) =>
+        selectedUserIds.includes(managedUser.id),
+    );
+    const selectedStudentsOnly =
+        selectedUsers.length > 0 &&
+        selectedUsers.every((item) => item.role === "student");
+    const selectableVisibleUsers = filteredUsers.filter(
+        (item) => !item.is_root_admin && item.id !== user.id,
+    );
+
+    function toggleUserSelection(userId, selected) {
+        setSelectedUserIds((current) =>
+            selected
+                ? current.includes(userId)
+                    ? current
+                    : [...current, userId]
+                : current.filter((id) => id !== userId),
+        );
+    }
+
+    function toggleVisibleSelection(selected) {
+        setSelectedUserIds((current) => {
+            const visibleIds = selectableVisibleUsers.map((item) => item.id);
+            if (!selected) {
+                return current.filter((id) => !visibleIds.includes(id));
+            }
+            return [...new Set([...current, ...visibleIds])];
+        });
+    }
+
+    async function applyBulkUpdate() {
+        const changes = {};
+        if (bulkRole) changes.role = bulkRole;
+        if (bulkLock !== "") changes.isLocked = bulkLock === "locked";
+        if (selectedUserIds.length === 0 || Object.keys(changes).length === 0) {
+            return;
+        }
+        setBulkBusy(true);
+        setError("");
+        try {
+            await updateManagedUsers(selectedUserIds, changes);
+            setSelectedUserIds([]);
+            setBulkRole("");
+            setBulkLock("");
+            await loadUsers();
+        } catch (requestError) {
+            setError(requestError.message);
+        } finally {
+            setBulkBusy(false);
+        }
+    }
+
+    async function applyBulkDeletion() {
+        if (selectedUserIds.length === 0) return;
+        if (
+            user.role === "admin" &&
+            !selectedUsers.every((item) => item.role === "student")
+        ) {
+            setError("Admin chỉ có thể yêu cầu xóa các tài khoản học sinh.");
+            return;
+        }
+        const confirmed = globalThis.confirm(
+            user.role === "admin"
+                ? `Gửi yêu cầu xóa cho ${selectedUserIds.length} học sinh để super admin duyệt?`
+                : `Xóa ${selectedUserIds.length} tài khoản đã chọn? Không thể xóa giáo viên; bài tập do tài khoản bị xóa tạo và bài nộp liên quan cũng sẽ bị xóa.`,
+        );
+        if (!confirmed) return;
+
+        setBulkBusy(true);
+        setError("");
+        try {
+            if (user.role === "admin") {
+                const result = await requestAccountDeletions(selectedUserIds);
+                addDeletionRequests(result.requests);
+            } else {
+                await deleteManagedUsers(selectedUserIds);
+                setUsers((current) =>
+                    current.filter((item) => !selectedUserIds.includes(item.id)),
+                );
+            }
+            setSelectedUserIds([]);
+            await loadUsers();
+        } catch (requestError) {
+            setError(requestError.message);
+        } finally {
+            setBulkBusy(false);
+        }
+    }
 
     return (
         <section className="view active">
@@ -440,24 +538,136 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
                     </button>
                 </form>
             )}
+            {!loading && filteredUsers.length > 0 && (
+                <>
+                    <label className="inlineCheck selectVisibleAccounts">
+                        <input
+                            type="checkbox"
+                            checked={
+                                selectableVisibleUsers.length > 0 &&
+                                selectableVisibleUsers.every((item) =>
+                                    selectedUserIds.includes(item.id),
+                                )
+                            }
+                            onChange={(event) =>
+                                toggleVisibleSelection(event.target.checked)
+                            }
+                        />
+                        Chọn tất cả tài khoản đang hiển thị
+                    </label>
+                    {selectedUserIds.length > 0 && (
+                        <div className="bulkAccountActions">
+                            <strong>
+                                Đã chọn {selectedUserIds.length} tài khoản
+                            </strong>
+                            {user.role === "super_admin" && (
+                                <>
+                                    <select
+                                        aria-label="Đổi vai trò hàng loạt"
+                                        value={bulkRole}
+                                        onChange={(event) =>
+                                            setBulkRole(event.target.value)
+                                        }
+                                    >
+                                        <option value="">Giữ nguyên vai trò</option>
+                                        {roles.map((role) => (
+                                            <option value={role} key={role}>
+                                                {roleLabels[role]}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        aria-label="Đổi trạng thái khóa hàng loạt"
+                                        value={bulkLock}
+                                        onChange={(event) =>
+                                            setBulkLock(event.target.value)
+                                        }
+                                    >
+                                        <option value="">Giữ nguyên khóa</option>
+                                        <option value="locked">Khóa</option>
+                                        <option value="unlocked">Mở khóa</option>
+                                    </select>
+                                    <button
+                                        className="primary"
+                                        type="button"
+                                        disabled={
+                                            bulkBusy || (!bulkRole && !bulkLock)
+                                        }
+                                        onClick={applyBulkUpdate}
+                                    >
+                                        {bulkBusy ? "Đang lưu…" : "Áp dụng chỉnh sửa"}
+                                    </button>
+                                </>
+                            )}
+                            <button
+                                className="secondary"
+                                type="button"
+                                disabled={
+                                    bulkBusy ||
+                                    (user.role === "admin" &&
+                                        !selectedStudentsOnly) ||
+                                    (user.role === "super_admin" &&
+                                        selectedUsers.some(
+                                            (item) => item.role === "teacher",
+                                        ))
+                                }
+                                onClick={applyBulkDeletion}
+                            >
+                                {user.role === "admin"
+                                    ? "Yêu cầu xóa học sinh"
+                                    : "Xóa đã chọn"}
+                            </button>
+                            <button
+                                className="textButton"
+                                type="button"
+                                onClick={() => setSelectedUserIds([])}
+                            >
+                                Bỏ chọn
+                            </button>
+                        </div>
+                    )}
+                </>
+            )}
             {loading ? (
                 <p className="muted">Đang tải tài khoản…</p>
             ) : users.length ? (
                 filteredUsers.length ? (
                     <div className="managedUsers">
                         {filteredUsers.map((managedUser) => (
-                            <ManagedUserRow
+                            <div
+                                className="managedUserSelectRow"
                                 key={managedUser.id}
-                                user={managedUser}
-                                currentUser={user}
-                                deletionRequest={deletionRequests.find(
-                                    (request) =>
-                                        request.target_user_id === managedUser.id,
-                                )}
-                                onUpdated={replaceUser}
-                                onDeleted={removeUser}
-                                onDeletionRequested={addDeletionRequest}
-                            />
+                            >
+                                <input
+                                    type="checkbox"
+                                    aria-label={`Chọn tài khoản ${managedUser.username}`}
+                                    checked={selectedUserIds.includes(
+                                        managedUser.id,
+                                    )}
+                                    disabled={
+                                        managedUser.is_root_admin ||
+                                        managedUser.id === user.id
+                                    }
+                                    onChange={(event) =>
+                                        toggleUserSelection(
+                                            managedUser.id,
+                                            event.target.checked,
+                                        )
+                                    }
+                                />
+                                <ManagedUserRow
+                                    user={managedUser}
+                                    currentUser={user}
+                                    deletionRequest={deletionRequests.find(
+                                        (request) =>
+                                            request.target_user_id ===
+                                            managedUser.id,
+                                    )}
+                                    onUpdated={replaceUser}
+                                    onDeleted={removeUser}
+                                    onDeletionRequested={addDeletionRequest}
+                                />
+                            </div>
                         ))}
                     </div>
                 ) : (

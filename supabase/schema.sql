@@ -173,6 +173,106 @@ begin
 end;
 $$;
 
+create or replace function public.delete_account_users(p_user_ids uuid[])
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    user_id uuid;
+begin
+    if coalesce(array_length(p_user_ids, 1), 0) = 0 then
+        raise exception 'Hãy chọn ít nhất một tài khoản.';
+    end if;
+    if cardinality(p_user_ids) <> (
+        select count(distinct selected.selected_id)
+        from unnest(p_user_ids) as selected(selected_id)
+    ) then
+        raise exception 'Danh sách tài khoản có phần tử trùng lặp.';
+    end if;
+
+    perform pg_advisory_xact_lock(638274, 1);
+    foreach user_id in array p_user_ids loop
+        perform public.delete_account_user(user_id);
+    end loop;
+end;
+$$;
+
+create or replace function public.update_account_users(
+    p_user_ids uuid[],
+    p_role text,
+    p_is_locked boolean
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    selected_count integer;
+    matching_count integer;
+begin
+    if coalesce(array_length(p_user_ids, 1), 0) = 0 then
+        raise exception 'Hãy chọn ít nhất một tài khoản.';
+    end if;
+    if cardinality(p_user_ids) <> (
+        select count(distinct selected.selected_id)
+        from unnest(p_user_ids) as selected(selected_id)
+    ) then
+        raise exception 'Danh sách tài khoản có phần tử trùng lặp.';
+    end if;
+    if p_role is null and p_is_locked is null then
+        raise exception 'Chọn vai trò hoặc trạng thái khóa cần thay đổi.';
+    end if;
+    if p_role is not null and p_role not in (
+        'student', 'teacher', 'admin', 'super_admin'
+    ) then
+        raise exception 'Vai trò được chọn không hợp lệ.';
+    end if;
+
+    perform pg_advisory_xact_lock(638274, 1);
+    select count(*) into selected_count
+    from public.account_users
+    where id = any(p_user_ids);
+    if selected_count <> cardinality(p_user_ids) then
+        raise exception 'Một hoặc nhiều tài khoản không còn tồn tại.';
+    end if;
+
+    if exists (
+        select 1 from public.account_users
+        where id = any(p_user_ids) and is_root_admin
+    ) then
+        raise exception 'Không thể chỉnh sửa hàng loạt tài khoản super admin gốc.';
+    end if;
+
+    if p_role is not null and p_role <> 'super_admin' then
+        select count(*) into matching_count
+        from public.account_users
+        where role = 'super_admin' and is_locked = false
+          and id <> all(p_user_ids);
+        if matching_count = 0 then
+            raise exception 'Không thể tước quyền super admin đang hoạt động cuối cùng.';
+        end if;
+    end if;
+
+    if p_is_locked is true then
+        select count(*) into matching_count
+        from public.account_users
+        where role = 'super_admin' and is_locked = false
+          and id <> all(p_user_ids);
+        if matching_count = 0 then
+            raise exception 'Không thể khóa super admin đang hoạt động cuối cùng.';
+        end if;
+    end if;
+
+    update public.account_users
+    set role = coalesce(p_role, role),
+        is_locked = coalesce(p_is_locked, is_locked)
+    where id = any(p_user_ids);
+end;
+$$;
+
 create or replace function public.resolve_account_deletion_request(
     p_request_id uuid,
     p_reviewed_by uuid,
@@ -230,8 +330,14 @@ grant select, insert, update, delete
        public.account_deletion_requests
     to service_role;
 revoke all on function public.delete_account_user(uuid) from public, anon, authenticated;
+revoke all on function public.delete_account_users(uuid[]) from public, anon, authenticated;
+revoke all on function public.update_account_users(uuid[], text, boolean)
+    from public, anon, authenticated;
 revoke all on function public.resolve_account_deletion_request(uuid, uuid, boolean)
     from public, anon, authenticated;
 grant execute on function public.delete_account_user(uuid) to service_role;
+grant execute on function public.delete_account_users(uuid[]) to service_role;
+grant execute on function public.update_account_users(uuid[], text, boolean)
+    to service_role;
 grant execute on function public.resolve_account_deletion_request(uuid, uuid, boolean)
     to service_role;

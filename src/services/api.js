@@ -64,15 +64,37 @@ export function deleteManagedUser(userId) {
     });
 }
 
+export function deleteManagedUsers(userIds) {
+    return request("/admin/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds }),
+    });
+}
+
+export function updateManagedUsers(userIds, changes) {
+    return request("/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds, changes }),
+    });
+}
+
 export function getAccountDeletionRequests() {
     return request("/admin/deletion-requests");
 }
 
 export function requestAccountDeletion(userId) {
+    return requestAccountDeletions([userId]).then((result) => ({
+        request: result.requests[0],
+    }));
+}
+
+export function requestAccountDeletions(userIds) {
     return request("/admin/deletion-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userIds }),
     });
 }
 

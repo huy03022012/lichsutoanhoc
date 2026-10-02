@@ -293,6 +293,41 @@ nav button:hover {
     display: flex;
     gap: 8px;
 }
+.bulkAccountActions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+}
+.bulkAccountActions select {
+    max-width: 210px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+    background: var(--bg);
+    color: var(--text);
+}
+.selectVisibleAccounts {
+    margin: 0 0 12px;
+}
+.managedUserSelectRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.managedUserSelectRow > input {
+    flex: 0 0 auto;
+    margin: 18px 0 0 2px;
+}
+.managedUserSelectRow > .managedUser {
+    min-width: 0;
+    flex: 1;
+}
 .managedUser {
     overflow: hidden;
     border: 1px solid var(--line);
@@ -1147,6 +1182,15 @@ hr {
     }
     .deletionRequestActions > button {
         flex: 1;
+    }
+    .bulkAccountActions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .bulkAccountActions select,
+    .bulkAccountActions > button {
+        width: 100%;
+        max-width: none;
     }
     .profile {
         display: none;
