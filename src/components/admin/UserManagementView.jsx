@@ -17,8 +17,10 @@ function ManagedUserRow({ user, currentUser, onUpdated }) {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const isSuperAdmin = currentUser.role === "super_admin";
+    const isRootAdmin = user.is_root_admin;
+    const isProtectedRoot = user.is_root_admin && !currentUser.is_root_admin;
     const canChangeCredentials =
-        isSuperAdmin ||
+        (!isProtectedRoot && isSuperAdmin) ||
         (currentUser.role === "admin" &&
             ["student", "teacher"].includes(user.role));
 
@@ -55,58 +57,83 @@ function ManagedUserRow({ user, currentUser, onUpdated }) {
             <summary>
                 <span>{user.username}</span>
                 <span className="tag">{roleLabels[user.role]}</span>
+                {user.is_root_admin && (
+                    <span className="tag">Super admin gốc</span>
+                )}
                 {user.is_locked && <span className="lockedTag">Đã khóa</span>}
             </summary>
             <form className="managedUserForm" onSubmit={save}>
-                {canChangeCredentials && (
+                {isProtectedRoot ? (
+                    <p className="muted">
+                        Tài khoản super admin gốc được bảo vệ; bạn không thể đổi
+                        thông tin, vai trò hoặc khóa tài khoản này.
+                    </p>
+                ) : (
                     <>
-                        <label>
-                            Tên đăng nhập
-                            <input
-                                minLength={3}
-                                maxLength={24}
-                                value={username}
-                                onChange={(event) => setUsername(event.target.value)}
-                            />
-                        </label>
-                        <label>
-                            Mật khẩu mới (để trống nếu không đổi)
-                            <input
-                                minLength={8}
-                                maxLength={128}
-                                type="password"
-                                autoComplete="new-password"
-                                value={password}
-                                onChange={(event) => setPassword(event.target.value)}
-                            />
-                        </label>
-                    </>
-                )}
-                {isSuperAdmin && (
-                    <>
-                        <label>
-                            Vai trò
-                            <select
-                                value={role}
-                                onChange={(event) => setRole(event.target.value)}
-                            >
-                                {roles.map((item) => (
-                                    <option value={item} key={item}>
-                                        {roleLabels[item]}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <label className="inlineCheck">
-                            <input
-                                type="checkbox"
-                                checked={isLocked}
-                                onChange={(event) =>
-                                    setIsLocked(event.target.checked)
-                                }
-                            />
-                            Khóa tài khoản
-                        </label>
+                        {canChangeCredentials && (
+                            <>
+                                <label>
+                                    Tên đăng nhập
+                                    <input
+                                        minLength={3}
+                                        maxLength={24}
+                                        value={username}
+                                        onChange={(event) =>
+                                            setUsername(event.target.value)
+                                        }
+                                    />
+                                </label>
+                                <label>
+                                    Mật khẩu mới (để trống nếu không đổi)
+                                    <input
+                                        minLength={8}
+                                        maxLength={128}
+                                        type="password"
+                                        autoComplete="new-password"
+                                        value={password}
+                                        onChange={(event) =>
+                                            setPassword(event.target.value)
+                                        }
+                                    />
+                                </label>
+                            </>
+                        )}
+                        {isSuperAdmin && isRootAdmin ? (
+                            <p className="muted">
+                                Tài khoản này luôn giữ vai trò super admin và
+                                không thể bị khóa.
+                            </p>
+                        ) : (
+                            isSuperAdmin && (
+                                <>
+                                    <label>
+                                        Vai trò
+                                        <select
+                                            value={role}
+                                            onChange={(event) =>
+                                                setRole(event.target.value)
+                                            }
+                                        >
+                                            {roles.map((item) => (
+                                                <option value={item} key={item}>
+                                                    {roleLabels[item]}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <label className="inlineCheck">
+                                        <input
+                                            type="checkbox"
+                                            checked={isLocked}
+                                            onChange={(event) =>
+                                                setIsLocked(event.target.checked)
+                                            }
+                                        />
+                                        Khóa tài khoản
+                                    </label>
+                                </>
+                            )
+                        )}
                     </>
                 )}
                 {error && (

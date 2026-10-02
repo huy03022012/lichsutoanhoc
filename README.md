@@ -76,11 +76,11 @@ Backend cung cấp `GET /api/content`, `GET /api/progress`, `POST /api/progress/
 ## Tài khoản, phân quyền và bài tập
 Hệ thống dùng Supabase làm cơ sở dữ liệu; mật khẩu được băm scrypt ở backend, còn phiên đăng nhập dùng cookie HttpOnly. Chạy `supabase/schema.sql` trong SQL Editor, sau đó cấu hình `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY` ở máy local và Vercel. Service-role key chỉ được đặt ở backend, tuyệt đối không dùng biến `VITE_*`.
 
-Đăng ký công khai luôn tạo tài khoản học sinh; username dài 3–24 ký tự, hỗ trợ chữ tiếng Việt và khoảng trắng (các khoảng trắng liên tiếp được gộp), mật khẩu tối thiểu 8 ký tự. Tài khoản đầu tiên cần tự đăng ký, rồi chủ dự án dùng SQL Editor để cấp quyền super admin: `update public.account_users set role = 'super_admin' where username = 'ten_dang_nhap';`. Không dùng email nên không có tự khôi phục mật khẩu; admin có thể đổi username/mật khẩu cho giáo viên và học sinh, super admin có thể đổi thông tin của mọi vai trò.
+Đăng ký công khai luôn tạo tài khoản học sinh; username dài 3–24 ký tự, hỗ trợ chữ tiếng Việt và khoảng trắng (các khoảng trắng liên tiếp được gộp), mật khẩu tối thiểu 8 ký tự. Tài khoản đầu tiên cần tự đăng ký, rồi chủ dự án dùng SQL Editor để cấp quyền super admin gốc: `update public.account_users set role = 'super_admin', is_root_admin = true where username = 'ten_dang_nhap';`. Super admin gốc không thể bị xóa, khóa hoặc tước vai trò; các super admin khác không thể sửa tài khoản này. Không dùng email nên không có tự khôi phục mật khẩu; admin có thể đổi username/mật khẩu cho giáo viên và học sinh, super admin có thể đổi thông tin của mọi vai trò.
 
 Giáo viên, admin và super admin có thể tạo bài tập. Học sinh đăng nhập để làm/nộp bài; giáo viên xem và nhận xét bài nộp của bài tập do mình tạo, admin/super admin có thể quản lý toàn bộ.
 
-Để cấu hình local, sao chép `.env.example` thành `.env`, điền Project URL và service-role/secret key của Supabase, rồi khởi động lại `npm run server`. Trên Vercel, thêm cùng hai biến trong **Settings → Environment Variables** (không có tiền tố `VITE_`) và redeploy. Sau khi chạy schema, đăng ký tài khoản đầu tiên trên website rồi chạy lệnh SQL ở trên để cấp super admin; không chia sẻ hoặc commit secret key.
+Để cấu hình local, sao chép `.env.example` thành `.env`, điền Project URL và service-role/secret key của Supabase, rồi khởi động lại `npm run server`. Trên Vercel, thêm cùng hai biến trong **Settings → Environment Variables** (không có tiền tố `VITE_`) và redeploy. Sau khi chạy schema, đăng ký tài khoản đầu tiên trên website rồi chạy lệnh SQL ở trên để cấp super admin gốc; đảm bảo câu lệnh cập nhật đúng một tài khoản. Không chia sẻ hoặc commit secret key.
 
 ## Chạy production
 ```bash

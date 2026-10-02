@@ -73,7 +73,7 @@ export default async function handler(req, res) {
                     role: "student",
                     is_locked: false,
                 })
-                .select("id, username, role, is_locked, created_at")
+                .select("id, username, role, is_locked, is_root_admin, created_at")
                 .single();
             if (error?.code === "23505") {
                 throw new HttpError(409, "Tên tài khoản này đã được sử dụng.");
@@ -86,7 +86,7 @@ export default async function handler(req, res) {
         if (action === "login") {
             const { data: user, error } = await db
                 .from("account_users")
-                .select("id, username, password_hash, role, is_locked, created_at")
+                .select("id, username, password_hash, role, is_locked, is_root_admin, created_at")
                 .eq("username", username)
                 .maybeSingle();
             if (error) throw error;

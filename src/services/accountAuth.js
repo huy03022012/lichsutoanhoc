@@ -213,7 +213,7 @@ export async function getSessionUser(db, req) {
     }
     const { data: user, error: userError } = await db
         .from("account_users")
-        .select("id, username, role, is_locked, created_at")
+        .select("id, username, role, is_locked, is_root_admin, created_at")
         .eq("id", session.user_id)
         .maybeSingle();
     if (userError) throw userError;
@@ -247,6 +247,7 @@ export function publicUser(user) {
         username: user.username,
         role: user.role,
         is_locked: user.is_locked,
+        is_root_admin: user.is_root_admin === true,
         createdAt: user.created_at,
     };
 }

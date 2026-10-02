@@ -6,8 +6,50 @@ create table if not exists public.account_users (
     role text not null default 'student'
         check (role in ('student', 'teacher', 'admin', 'super_admin')),
     is_locked boolean not null default false,
+    is_root_admin boolean not null default false,
     created_at timestamptz not null default now()
 );
+
+alter table public.account_users
+    add column if not exists is_root_admin boolean not null default false;
+
+alter table public.account_users
+    drop constraint if exists account_users_root_admin_role_check;
+alter table public.account_users
+    add constraint account_users_root_admin_role_check
+    check (not is_root_admin or role = 'super_admin');
+alter table public.account_users
+    drop constraint if exists account_users_root_admin_unlocked_check;
+alter table public.account_users
+    add constraint account_users_root_admin_unlocked_check
+    check (not is_root_admin or not is_locked);
+
+create or replace function public.protect_root_admin_account()
+returns trigger
+language plpgsql
+as $$
+begin
+    if tg_op = 'DELETE' and old.is_root_admin then
+        raise exception 'The root admin account cannot be deleted';
+    end if;
+
+    if tg_op = 'UPDATE' and old.is_root_admin
+       and new.is_root_admin is distinct from true then
+        raise exception 'The root admin designation cannot be removed';
+    end if;
+
+    if tg_op = 'DELETE' then
+        return old;
+    end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists protect_root_admin_account
+    on public.account_users;
+create trigger protect_root_admin_account
+before update or delete on public.account_users
+for each row execute function public.protect_root_admin_account();
 
 -- Cũng cập nhật constraint khi schema được chạy lại trên project đã tạo trước đó.
 alter table public.account_users

@@ -25,7 +25,7 @@ export default async function handler(req, res) {
         if (req.method === "GET") {
             let query = db
                 .from("account_users")
-                .select("id, username, role, is_locked, created_at")
+                .select("id, username, role, is_locked, is_root_admin, created_at")
                 .order("created_at", { ascending: false });
             if (currentUser.role === "admin") {
                 query = query.in("role", ["student", "teacher"]);
@@ -46,11 +46,17 @@ export default async function handler(req, res) {
         }
         const { data: target, error: targetError } = await db
             .from("account_users")
-            .select("id, username, role, is_locked, created_at")
+            .select("id, username, role, is_locked, is_root_admin, created_at")
             .eq("id", userId)
             .maybeSingle();
         if (targetError) throw targetError;
         if (!target) throw new HttpError(404, "Không tìm thấy tài khoản.");
+        if (target.is_root_admin && !currentUser.is_root_admin) {
+            throw new HttpError(
+                403,
+                "Chỉ super admin gốc mới có thể thay đổi tài khoản này.",
+            );
+        }
 
         if (
             currentUser.role === "admin" &&
@@ -73,6 +79,12 @@ export default async function handler(req, res) {
             }
             if (!ROLES.has(changes.role)) {
                 throw new HttpError(400, "Vai trò được chọn không hợp lệ.");
+            }
+            if (target.is_root_admin && changes.role !== "super_admin") {
+                throw new HttpError(
+                    400,
+                    "Tài khoản super admin gốc không thể bị tước vai trò.",
+                );
             }
             if (
                 target.role === "super_admin" &&
@@ -102,6 +114,12 @@ export default async function handler(req, res) {
             }
             if (changes.isLocked && target.id === currentUser.id) {
                 throw new HttpError(400, "Không thể khóa tài khoản đang đăng nhập.");
+            }
+            if (target.is_root_admin && changes.isLocked) {
+                throw new HttpError(
+                    400,
+                    "Tài khoản super admin gốc không thể bị khóa.",
+                );
             }
             if (
                 changes.isLocked &&
@@ -169,7 +187,7 @@ export default async function handler(req, res) {
 
         const { data: updatedUser, error: updatedError } = await db
             .from("account_users")
-            .select("id, username, role, is_locked, created_at")
+            .select("id, username, role, is_locked, is_root_admin, created_at")
             .eq("id", target.id)
             .single();
         if (updatedError) throw updatedError;
