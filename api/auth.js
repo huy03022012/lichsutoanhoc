@@ -62,6 +62,47 @@ export default async function handler(req, res) {
             return res.status(200).json({ user: null });
         }
 
+        if (action === "change-password") {
+            const currentUser = await getSessionUser(db, req);
+            if (!currentUser) {
+                throw new HttpError(401, "Vui lòng đăng nhập để tiếp tục.");
+            }
+            const currentPassword = validatePassword(req.body?.currentPassword);
+            const newPassword = validatePassword(req.body?.newPassword);
+            if (
+                typeof req.body?.passwordConfirmation !== "string" ||
+                req.body.passwordConfirmation !== newPassword
+            ) {
+                throw new HttpError(400, "Mật khẩu mới nhập lại chưa khớp.");
+            }
+
+            const { data: account, error: accountError } = await db
+                .from("account_users")
+                .select("password_hash")
+                .eq("id", currentUser.id)
+                .single();
+            if (accountError) throw accountError;
+
+            if (!(await verifyPassword(currentPassword, account.password_hash))) {
+                throw new HttpError(400, "Mật khẩu hiện tại chưa đúng.");
+            }
+            if (await verifyPassword(newPassword, account.password_hash)) {
+                throw new HttpError(
+                    400,
+                    "Mật khẩu mới phải khác mật khẩu hiện tại.",
+                );
+            }
+
+            const passwordHash = await hashPassword(newPassword);
+            const { error: updateError } = await db
+                .from("account_users")
+                .update({ password_hash: passwordHash })
+                .eq("id", currentUser.id);
+            if (updateError) throw updateError;
+
+            return res.status(200).json({ success: true });
+        }
+
         if (action === "register") {
             const username = validateUsername(req.body?.username);
             const displayName = validateDisplayName(req.body?.displayName);

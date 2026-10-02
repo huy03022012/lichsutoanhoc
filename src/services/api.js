@@ -46,6 +46,18 @@ export function submitAccountAction(action, credentials = {}) {
     });
 }
 
+export function changeAccountPassword(
+    currentPassword,
+    newPassword,
+    passwordConfirmation,
+) {
+    return submitAccountAction("change-password", {
+        currentPassword,
+        newPassword,
+        passwordConfirmation,
+    });
+}
+
 export function getManagedUsers() {
     return request("/admin/users");
 }

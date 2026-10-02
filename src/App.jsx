@@ -11,6 +11,7 @@ import {
     submitAccountAction,
 } from "./services/api.js";
 import AccountDialog from "./components/auth/AccountDialog.jsx";
+import PasswordChangeDialog from "./components/auth/PasswordChangeDialog.jsx";
 import UserManagementView from "./components/admin/UserManagementView.jsx";
 import AssignmentsView from "./components/assignments/AssignmentsView.jsx";
 
@@ -1021,6 +1022,7 @@ function App() {
     const [user, setUser] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
     const [authDialogOpen, setAuthDialogOpen] = useState(false);
+    const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const [authNotice, setAuthNotice] = useState("");
 
     // Chỉ tải học liệu sau khi đã xác thực tài khoản.
@@ -1274,6 +1276,15 @@ function App() {
                                     {user.displayName || user.username} ·{" "}
                                     {roleLabels[user.role]}
                                 </span>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setPasswordDialogOpen(true);
+                                        setIsMobileMenuOpen(false);
+                                    }}
+                                >
+                                    Đổi mật khẩu
+                                </button>
                                 <button type="button" onClick={signOut}>
                                     Đăng xuất
                                 </button>
@@ -1305,6 +1316,13 @@ function App() {
                                 {user.displayName || user.username} ·{" "}
                                 {roleLabels[user.role]}
                             </span>
+                            <button
+                                className="secondary"
+                                type="button"
+                                onClick={() => setPasswordDialogOpen(true)}
+                            >
+                                Đổi mật khẩu
+                            </button>
                             <button
                                 className="secondary"
                                 type="button"
@@ -1340,6 +1358,15 @@ function App() {
                         setAuthDialogOpen(false);
                         setAuthNotice("");
                         setView("home");
+                    }}
+                />
+            )}
+            {passwordDialogOpen && (
+                <PasswordChangeDialog
+                    onClose={() => setPasswordDialogOpen(false)}
+                    onChanged={() => {
+                        setPasswordDialogOpen(false);
+                        setAuthNotice("Mật khẩu đã được đổi thành công.");
                     }}
                 />
             )}
