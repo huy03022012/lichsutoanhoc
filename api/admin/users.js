@@ -35,8 +35,35 @@ export default async function handler(req, res) {
             return res.status(200).json({ users: data.map(publicUser) });
         }
 
+        if (req.method === "DELETE") {
+            ensureSameOrigin(req);
+            if (currentUser.role !== "super_admin") {
+                throw new HttpError(
+                    403,
+                    "Chỉ super admin mới được xóa tài khoản trực tiếp.",
+                );
+            }
+            const userId = req.query?.userId;
+            if (typeof userId !== "string" || !/^[0-9a-f-]{36}$/i.test(userId)) {
+                throw new HttpError(400, "Tài khoản được chọn không hợp lệ.");
+            }
+            if (userId === currentUser.id) {
+                throw new HttpError(400, "Không thể xóa tài khoản đang đăng nhập.");
+            }
+            const { error } = await db.rpc("delete_account_user", {
+                p_user_id: userId,
+            });
+            if (error) {
+                throw new HttpError(
+                    409,
+                    error.message || "Không thể xóa tài khoản này.",
+                );
+            }
+            return res.status(200).json({ deletedUserId: userId });
+        }
+
         if (req.method !== "PATCH") {
-            res.setHeader("Allow", "GET, PATCH");
+            res.setHeader("Allow", "GET, PATCH, DELETE");
             return res.status(405).json({ error: "Phương thức không được hỗ trợ." });
         }
         ensureSameOrigin(req);

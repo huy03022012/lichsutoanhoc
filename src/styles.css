@@ -273,6 +273,26 @@ nav button:hover {
     display: grid;
     gap: 12px;
 }
+.deletionRequests {
+    margin-bottom: 24px;
+}
+.deletionRequests h2 {
+    margin-top: 0;
+}
+.deletionRequest {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px;
+}
+.deletionRequest p {
+    margin: 5px 0 0;
+}
+.deletionRequestActions {
+    display: flex;
+    gap: 8px;
+}
 .managedUser {
     overflow: hidden;
     border: 1px solid var(--line);
@@ -1120,6 +1140,13 @@ hr {
     }
     .accountSearch {
         flex-direction: column;
+    }
+    .deletionRequest {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .deletionRequestActions > button {
+        flex: 1;
     }
     .profile {
         display: none;

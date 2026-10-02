@@ -7,6 +7,7 @@ import { AI_SYSTEM_INSTRUCTION } from "./aiPrompt.js";
 import { validateAiImage } from "./aiImage.js";
 import accountHandler from "../../api/auth.js";
 import managedUsersHandler from "../../api/admin/users.js";
+import deletionRequestsHandler from "../../api/admin/deletion-requests.js";
 import assignmentsHandler from "../../api/assignments.js";
 import assignmentSubmissionsHandler from "../../api/assignments/[assignmentId]/submissions.js";
 import {
@@ -138,6 +139,7 @@ app.post("/api/progress/quiz", (req, res) => {
 
 app.all("/api/auth", accountHandler);
 app.all("/api/admin/users", managedUsersHandler);
+app.all("/api/admin/deletion-requests", deletionRequestsHandler);
 app.all("/api/assignments", assignmentsHandler);
 app.all(
     "/api/assignments/:assignmentId/submissions",
