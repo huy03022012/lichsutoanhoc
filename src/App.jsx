@@ -1105,29 +1105,12 @@ function App() {
                         </div>
                     </div>
                 </header>
-                <main>
+                <main className="authMain">
                     {authNotice && (
                         <p className="authNotice" role="alert">
                             {authNotice}
                         </p>
                     )}
-                    <section className="view active loginRequired">
-                        <span className="tag">MathHistory AI</span>
-                        <h1>Đăng nhập để tiếp tục</h1>
-                        <p className="muted">
-                            Bạn cần đăng nhập hoặc tạo tài khoản học sinh để sử
-                            dụng học liệu, bài tập và trợ giảng AI.
-                        </p>
-                        <button
-                            className="primary"
-                            type="button"
-                            onClick={() => setAuthDialogOpen(true)}
-                        >
-                            Đăng nhập / Đăng ký
-                        </button>
-                    </section>
-                </main>
-                {authDialogOpen && (
                     <AccountDialog
                         required
                         onAuthenticated={(signedInUser) => {
@@ -1137,7 +1120,7 @@ function App() {
                             setView("home");
                         }}
                     />
-                )}
+                </main>
                 <footer className="footer">
                     <div>MathHistory AI · Học liệu lịch sử Toán học</div>
                     <small className="footerAuthor">

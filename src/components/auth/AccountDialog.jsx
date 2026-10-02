@@ -12,6 +12,8 @@ export default function AccountDialog({
     const [password, setPassword] = useState("");
     const [passwordConfirmation, setPasswordConfirmation] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [showPasswordConfirmation, setShowPasswordConfirmation] =
+        useState(false);
     const [error, setError] = useState("");
     const [usernameError, setUsernameError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -48,15 +50,43 @@ export default function AccountDialog({
         }
     }
 
+    function switchMode(nextMode) {
+        setMode(nextMode);
+        setShowPassword(false);
+        setShowPasswordConfirmation(false);
+        setError("");
+        setUsernameError("");
+        setPasswordConfirmation("");
+    }
+
     return (
         <div
-            className="accountDialogBackdrop"
+            className={required ? "accountPageLayout" : "accountDialogBackdrop"}
             onMouseDown={required ? undefined : onClose}
         >
+            {required && (
+                <div className="accountPageIntro">
+                    <span className="tag">MathHistory AI</span>
+                    <h1>
+                        Khám phá lịch sử Toán học
+                        <br />
+                        <em>bắt đầu từ đây.</em>
+                    </h1>
+                    <p className="muted">
+                        Đăng nhập hoặc tạo tài khoản học sinh để xem học liệu,
+                        làm bài tập và trò chuyện cùng AI trợ giảng.
+                    </p>
+                    <div className="authPageHighlights">
+                        <span>Học liệu lịch sử Toán học</span>
+                        <span>Bài tập và tiến độ học tập</span>
+                        <span>AI trợ giảng đồng hành</span>
+                    </div>
+                </div>
+            )}
             <section
-                className="accountDialog"
-                role="dialog"
-                aria-modal="true"
+                className={`accountDialog${required ? " accountPageCard" : ""}`}
+                role={required ? undefined : "dialog"}
+                aria-modal={required ? undefined : "true"}
                 aria-labelledby="accountDialogTitle"
                 onMouseDown={(event) => event.stopPropagation()}
             >
@@ -79,6 +109,30 @@ export default function AccountDialog({
                             ×
                         </button>
                     )}
+                </div>
+                <div
+                    className="accountModeTabs"
+                    role="tablist"
+                    aria-label="Chọn đăng nhập hoặc đăng ký"
+                >
+                    <button
+                        className={mode === "login" ? "active" : ""}
+                        type="button"
+                        role="tab"
+                        aria-selected={mode === "login"}
+                        onClick={() => switchMode("login")}
+                    >
+                        Đăng nhập
+                    </button>
+                    <button
+                        className={mode === "register" ? "active" : ""}
+                        type="button"
+                        role="tab"
+                        aria-selected={mode === "register"}
+                        onClick={() => switchMode("register")}
+                    >
+                        Tạo tài khoản
+                    </button>
                 </div>
                 <form className="accountForm" onSubmit={submit}>
                     {mode === "register" && (
@@ -168,19 +222,42 @@ export default function AccountDialog({
                     {mode === "register" && (
                         <label>
                             Nhập lại mật khẩu
-                            <input
-                                autoComplete="new-password"
-                                minLength={8}
-                                maxLength={128}
-                                required
-                                type={showPassword ? "text" : "password"}
-                                value={passwordConfirmation}
-                                onChange={(event) => {
-                                    setPasswordConfirmation(event.target.value);
-                                    setError("");
-                                }}
-                                placeholder="Nhập lại mật khẩu"
-                            />
+                            <span className="passwordInputWrap">
+                                <input
+                                    id="account-password-confirmation"
+                                    autoComplete="new-password"
+                                    minLength={8}
+                                    maxLength={128}
+                                    required
+                                    type={
+                                        showPasswordConfirmation
+                                            ? "text"
+                                            : "password"
+                                    }
+                                    value={passwordConfirmation}
+                                    onChange={(event) => {
+                                        setPasswordConfirmation(event.target.value);
+                                        setError("");
+                                    }}
+                                    placeholder="Nhập lại mật khẩu"
+                                />
+                                <button
+                                    className="passwordVisibilityToggle"
+                                    type="button"
+                                    aria-label={
+                                        showPasswordConfirmation
+                                            ? "Ẩn mật khẩu nhập lại"
+                                            : "Hiện mật khẩu nhập lại"
+                                    }
+                                    aria-controls="account-password-confirmation"
+                                    aria-pressed={showPasswordConfirmation}
+                                    onClick={() =>
+                                        setShowPasswordConfirmation((visible) => !visible)
+                                    }
+                                >
+                                    {showPasswordConfirmation ? "Ẩn" : "Hiện"}
+                                </button>
+                            </span>
                         </label>
                     )}
                     <p className="muted accountHint">
@@ -198,27 +275,9 @@ export default function AccountDialog({
                             ? "Đang xử lý…"
                             : mode === "login"
                               ? "Đăng nhập"
-                              : "Tạo tài khoản"}
+                              : "Tạo tài khoản"                              }
                     </button>
                 </form>
-                <p className="accountModeSwitch">
-                    {mode === "login" ? "Chưa có tài khoản?" : "Đã có tài khoản?"}{" "}
-                    <button
-                        className="textButton"
-                        type="button"
-                        onClick={() => {
-                            setMode((current) =>
-                                current === "login" ? "register" : "login",
-                            );
-                            setShowPassword(false);
-                            setError("");
-                            setUsernameError("");
-                            setPasswordConfirmation("");
-                        }}
-                    >
-                        {mode === "login" ? "Đăng ký học sinh" : "Đăng nhập"}
-                    </button>
-                </p>
             </section>
         </div>
     );

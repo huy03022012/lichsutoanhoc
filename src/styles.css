@@ -151,6 +151,44 @@ nav button:hover {
     padding: 18px;
     background: #0009;
 }
+.accountPageLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
+    align-items: center;
+    gap: clamp(36px, 8vw, 110px);
+    min-height: calc(100vh - 205px);
+    padding: 24px 0;
+}
+.accountPageIntro {
+    max-width: 580px;
+}
+.accountPageIntro h1 {
+    margin: 18px 0 14px;
+    font-size: clamp(38px, 5vw, 62px);
+    line-height: 1.04;
+    letter-spacing: -0.045em;
+}
+.accountPageIntro h1 em {
+    color: var(--primary);
+    font-style: normal;
+}
+.accountPageIntro p {
+    max-width: 500px;
+    font-size: 17px;
+    line-height: 1.7;
+}
+.authPageHighlights {
+    display: grid;
+    gap: 12px;
+    margin-top: 28px;
+    color: var(--muted);
+}
+.authPageHighlights span::before {
+    content: "✓";
+    margin-right: 10px;
+    color: var(--primary);
+    font-weight: 800;
+}
 .accountDialog {
     width: min(460px, 100%);
     max-height: min(90vh, 760px);
@@ -160,6 +198,32 @@ nav button:hover {
     border-radius: 20px;
     background: var(--surface);
     box-shadow: var(--shadow);
+}
+.accountPageCard {
+    width: 100%;
+    max-height: none;
+}
+.accountModeTabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin: 20px 0;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--surface2);
+}
+.accountModeTabs button {
+    border: 0;
+    border-radius: 9px;
+    padding: 10px;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 700;
+}
+.accountModeTabs button.active {
+    background: var(--surface);
+    color: var(--primary);
+    box-shadow: 0 2px 8px #00000012;
 }
 .accountDialogHeader,
 .sectionHeader,
@@ -1060,6 +1124,25 @@ hr {
 }
 /* Điều chỉnh bố cục cho tablet và điện thoại. */
 @media (max-width: 850px) {
+    .accountPageLayout {
+        grid-template-columns: 1fr;
+        gap: 22px;
+        max-width: 520px;
+        min-height: 0;
+        margin: auto;
+    }
+    .accountPageIntro {
+        text-align: center;
+    }
+    .accountPageIntro p {
+        margin: 0 auto;
+    }
+    .authPageHighlights {
+        display: none;
+    }
+    .accountPageIntro h1 {
+        font-size: clamp(34px, 8vw, 48px);
+    }
     .hero,
     .ai:not(.aiWorkspace) {
         grid-template-columns: 1fr;
@@ -1166,6 +1249,12 @@ hr {
 @media (max-width: 520px) {
     main {
         padding-top: 22px;
+    }
+    .authMain {
+        padding-top: 24px;
+    }
+    .accountPageLayout {
+        gap: 16px;
     }
     .grid {
         grid-template-columns: 1fr;
