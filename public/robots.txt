@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lichsutoanhoc.vercel.app/sitemap.xml
