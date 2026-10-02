@@ -225,6 +225,10 @@ export const lessons = [
         ],
         sources: [
             {
+                title: "Al-Khwarizmi — Wikipedia tiếng Việt",
+                url: "https://vi.wikipedia.org/wiki/Al-Khwarizmi",
+            },
+            {
                 title: "Al-Khwarizmi — MacTutor History of Mathematics",
                 url: "https://mathshistory.st-andrews.ac.uk/Biographies/Al-Khwarizmi/",
             },
