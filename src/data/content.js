@@ -201,44 +201,40 @@ export const lessons = [
         ],
     },
     {
-        id: "sources",
-        icon: "📚",
-        tag: "Nghiên cứu",
-        title: "Cách kiểm chứng học liệu AI",
-        desc: "Học cách đối chiếu thông tin AI với nguồn uy tín trước khi sử dụng.",
-        key: "ai nguon kiem chung",
+        id: "al-khwarizmi",
+        icon: "🧮",
+        tag: "Đại số",
+        title: "Al-Khwarizmi và sự ra đời của đại số",
+        desc: "Tìm hiểu học giả ở Baghdad có công hệ thống hóa các phương pháp đại số.",
+        key: "al khwarizmi dai so baghdad",
         introduction:
-            "Công cụ AI có thể giúp gợi ý từ khóa hoặc giải thích khái niệm, nhưng câu trả lời có thể sai, thiếu ngữ cảnh hoặc dẫn nguồn không chính xác. Hãy xem AI như điểm bắt đầu cho việc tìm hiểu, không phải nguồn xác nhận cuối cùng.",
+            "Muhammad ibn Musa al-Khwarizmi là học giả hoạt động tại Baghdad vào khoảng thế kỷ 9. Tác phẩm về phép tính al-jabr đã trình bày các phương pháp giải những bài toán thực tế và góp phần hình thành ngành đại số như một lĩnh vực toán học có hệ thống.",
         sections: [
             {
-                heading: "Tìm nguồn gốc của khẳng định",
-                text: "Tách câu trả lời thành các khẳng định có thể kiểm tra: ai, ở đâu, khi nào, tác phẩm nào. Tìm nguồn độc lập cho từng thông tin quan trọng thay vì chỉ hỏi lại cùng một chatbot.",
+                heading: "Học thuật ở Baghdad",
+                text: "Al-Khwarizmi làm việc dưới sự bảo trợ của caliph al-Ma'mun trong môi trường học thuật ở Baghdad. Ông nghiên cứu và viết về toán học, thiên văn học cùng các lĩnh vực liên quan. Tư liệu về cuộc đời ông còn hạn chế, vì vậy nhiều chi tiết tiểu sử vẫn chưa được xác định chắc chắn.",
             },
             {
-                heading: "Ưu tiên nguồn đáng tin",
-                text: "Ưu tiên bảo tàng, thư viện, trường đại học, ấn bản học thuật và bách khoa thư có biên tập. Kiểm tra tác giả, đơn vị phát hành, ngày cập nhật và tài liệu tham khảo.",
+                heading: "Tác phẩm về al-jabr",
+                text: "Tác phẩm Hisab al-jabr w'al-muqabala hướng dẫn cách giải các phương trình bậc nhất và bậc hai bằng những phép biến đổi được trình bày theo lời văn. Tác phẩm cũng bàn đến các vấn đề thực tiễn như thừa kế, giao dịch và đo đạc. Từ al-jabr trong nhan đề là nguồn gốc của từ “đại số” trong nhiều ngôn ngữ.",
             },
             {
-                heading: "Ghi chú nguồn và mức độ chắc chắn",
-                text: "Ghi lại đường dẫn, tên tài liệu và ngày truy cập. Nếu các nguồn uy tín bất đồng hoặc tư liệu lịch sử còn hạn chế, hãy trình bày điểm chưa chắc chắn thay vì biến suy đoán thành sự thật.",
+                heading: "Ảnh hưởng và cách nhìn lịch sử",
+                text: "Các bản dịch Latin thời Trung cổ giúp truyền bá những phương pháp của ông tới châu Âu. Al-Khwarizmi không tạo ra toàn bộ kiến thức đại số từ con số không: ông tiếp thu và phát triển tri thức từ nhiều truyền thống toán học. Di sản của ông nằm ở việc hệ thống hóa và truyền đạt các phương pháp đó.",
             },
         ],
         sources: [
             {
-                title: "Wikipedia — Wikipedia tiếng Việt",
-                url: "https://vi.wikipedia.org/wiki/Wikipedia",
+                title: "Al-Khwarizmi — MacTutor History of Mathematics",
+                url: "https://mathshistory.st-andrews.ac.uk/Biographies/Al-Khwarizmi/",
             },
             {
-                title: "Thông tin khoa học trên Wikipedia — Wikipedia tiếng Việt",
-                url: "https://vi.wikipedia.org/wiki/Th%C3%B4ng_tin_khoa_h%E1%BB%8Dc_tr%C3%AAn_Wikipedia",
+                title: "Al-Khwarizmi — Encyclopaedia Britannica",
+                url: "https://www.britannica.com/biography/al-Khwarizmi",
             },
             {
-                title: "UNESCO Recommendation on Open Science — evaluating and sharing knowledge",
-                url: "https://www.unesco.org/en/open-science/about",
-            },
-            {
-                title: "MacTutor History of Mathematics Archive",
-                url: "https://mathshistory.st-andrews.ac.uk/",
+                title: "Algebra — Encyclopaedia Britannica",
+                url: "https://www.britannica.com/science/algebra",
             },
         ],
     },
@@ -251,9 +247,9 @@ export const timeline = [
     ["~300 TCN", "Euclid", "“Cơ sở” trở thành tác phẩm nền tảng của hình học."],
     ["~250 TCN", "Archimedes", "Đóng góp nổi bật trong hình học và cơ học."],
     [
-        "Hiện đại",
-        "AI",
-        "Công cụ mới hỗ trợ học sinh nghiên cứu và trình bày học liệu.",
+        "Thế kỷ IX",
+        "Al-Khwarizmi",
+        "Hệ thống hóa các phương pháp đại số trong tác phẩm về al-jabr.",
     ],
 ];
 

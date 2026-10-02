@@ -339,16 +339,6 @@ function TimelineView({ timeline }) {
                     </div>
                 ))}
             </div>
-            <div className="section">
-                <div className="card">
-                    <span className="tag">Nghiên cứu có trách nhiệm</span>
-                    <h3>Kiểm chứng trước khi tin</h3>
-                    <p>
-                        AI có thể hỗ trợ tìm hiểu và trình bày, nhưng nội dung
-                        lịch sử cần được đối chiếu với các nguồn uy tín.
-                    </p>
-                </div>
-            </div>
         </section>
     );
 }
