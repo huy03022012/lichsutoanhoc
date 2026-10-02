@@ -33,6 +33,7 @@ export default async function handler(req, res) {
             let autoMaxScore = null;
             let autoFeedback = [];
             let essayQuestions = [];
+            let score = 0;
             if (assignment.quiz_questions?.length) {
                 const answers = req.body?.answers;
                 if (
@@ -41,7 +42,6 @@ export default async function handler(req, res) {
                 ) {
                     throw new HttpError(400, "Hãy trả lời đầy đủ các câu hỏi.");
                 }
-                let score = 0;
                 let maxScore = 0;
                 for (const [index, question] of assignment.quiz_questions.entries()) {
                     const response = answers[index];
