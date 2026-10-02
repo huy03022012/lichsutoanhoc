@@ -615,7 +615,7 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
                             >
                                 {user.role === "admin"
                                     ? "Yêu cầu xóa học sinh"
-                                    : "Xóa đã chọn"}
+                                    : "Xóa tài khoản đã chọn"}
                             </button>
                             <button
                                 className="textButton"
