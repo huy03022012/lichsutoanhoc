@@ -12,6 +12,7 @@ export default defineConfig({
         proxy: { "/api": "http://localhost:3000" },
     },
     build: {
+        sourcemap: false,
         // Gom font KaTeX thành thư mục riêng; các asset khác vẫn nằm ở assets/.
         rolldownOptions: {
             output: {
