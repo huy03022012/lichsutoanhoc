@@ -1,5 +1,4 @@
 import { GoogleGenAI } from "@google/genai";
-import { checkAiRateLimit } from "../../src/services/aiRateLimit.js";
 import { validateAiImage } from "../../src/services/aiImage.js";
 import { AI_SYSTEM_INSTRUCTION } from "../../src/services/aiPrompt.js";
 
@@ -32,25 +31,6 @@ export default async function handler(req, res) {
         return res
             .status(503)
             .json({ error: "Chưa cấu hình GEMINI_API_KEY trên Vercel." });
-    }
-
-    // Chặn vượt hạn mức trước khi gọi Gemini để tránh request tốn quota.
-    let rateLimit;
-    try {
-        rateLimit = await checkAiRateLimit(req);
-    } catch (error) {
-        console.error("Lỗi bộ giới hạn AI:", error);
-        return res.status(503).json({
-            error: "Không thể kiểm tra giới hạn AI. Vui lòng thử lại sau.",
-        });
-    }
-    res.setHeader("RateLimit-Limit", "20");
-    res.setHeader("RateLimit-Remaining", String(Math.max(0, 20 - rateLimit.count)));
-    res.setHeader("Retry-After", String(rateLimit.retryAfter));
-    if (!rateLimit.allowed) {
-        return res.status(429).json({
-            error: "Bạn đã gửi quá 20 câu hỏi trong 15 phút. Vui lòng thử lại sau.",
-        });
     }
 
     try {

@@ -1,7 +1,6 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-import { rateLimit } from "express-rate-limit";
 import { GoogleGenAI } from "@google/genai";
 import { lessons, quiz, timeline } from "../data/content.js";
 import { AI_SYSTEM_INSTRUCTION } from "./aiPrompt.js";
@@ -138,19 +137,7 @@ const ai = process.env.GEMINI_API_KEY
     ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
     : null;
 
-// Rate limit được áp dụng trước handler để hạn chế lạm dụng endpoint AI.
-app.post(
-    "/api/ai/chat",
-    rateLimit({
-        windowMs: 15 * 60 * 1000,
-        limit: 20,
-        standardHeaders: "draft-8",
-        legacyHeaders: false,
-        message: {
-            error: "Bạn đã gửi quá nhiều câu hỏi. Vui lòng thử lại sau.",
-        },
-    }),
-    async (req, res) => {
+app.post("/api/ai/chat", async (req, res) => {
         const message =
             typeof req.body?.message === "string"
                 ? req.body.message.trim()
@@ -196,7 +183,7 @@ app.post(
                 });
             }
             const response = await ai.models.generateContent({
-                model: "gemini-3.5-flash-lite",
+                model: "gemini-3.5-flash",
                 contents: [{ role: "user", parts }],
                 config: { systemInstruction: AI_SYSTEM_INSTRUCTION },
             });
@@ -214,8 +201,7 @@ app.post(
                     error: "Không thể kết nối dịch vụ AI.",
                 });
         }
-    },
-);
+});
 
 app.use((error, _req, res, _next) => {
     console.error("Lỗi API:", error);

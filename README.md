@@ -11,7 +11,7 @@ Website học tập tương tác về lịch sử Toán học, dùng React/Vite 
 - `src/services/api.js`: các yêu cầu API mà frontend gửi lên backend.
 - `src/services/server.js`: API Express khi chạy local hoặc Node server.
 - `api/`: Vercel Functions; Vercel dùng các handler này thay cho Express `app.listen`.
-- `src/services/aiPrompt.js` và `src/services/aiRateLimit.js`: giới hạn chủ đề AI và hạn mức gọi AI.
+- `src/services/aiPrompt.js`: giới hạn chủ đề và quy tắc hướng dẫn của AI.
 - `src/services/aiImage.js`: loại ảnh, giới hạn dung lượng và kiểm tra payload gửi tới AI.
 - `index.html`: ngôn ngữ trang, metadata trình duyệt và điểm gắn React.
 - `public/favicon.svg`: logo nhỏ hiển thị trên tab trình duyệt.
@@ -57,7 +57,7 @@ npm run preview
 ```
 
 ## AI backend
-Frontend gọi `POST /api/ai/chat`; AI dùng model `gemini-3.5-flash-lite`, hỗ trợ Lịch sử Toán học và bài tập từ văn bản/ảnh. Mặc định AI chỉ đưa phương pháp, câu hỏi gợi mở và gợi ý, không đưa đáp số. Khi học sinh đã làm xong, bật nút `Chấm bài đã làm` để AI nhận xét đúng/sai, góp ý và trình bày lời giải mẫu để đối chiếu; nếu chưa gửi bài làm, AI sẽ hỏi phần đã làm thay vì tự giải. Chỉ dẫn này được truyền bằng cờ `checkWork` riêng tới API. Người dùng có thể mở camera để chụp (chọn camera trước/sau) hoặc chọn ảnh có sẵn. Ảnh JPEG/PNG/WebP tối đa 3 MB được gửi đến backend rồi chuyển cho Gemini phân tích. Camera cần được cấp quyền; khi deploy, trình duyệt yêu cầu HTTPS. Ảnh không được lưu vào Vercel hoặc localStorage; lịch sử trình duyệt chỉ ghi tên ảnh.
+Frontend gọi `POST /api/ai/chat`; AI dùng model `gemini-3.5-flash`, hỗ trợ Lịch sử Toán học và bài tập từ văn bản/ảnh. Mặc định AI chỉ đưa phương pháp, câu hỏi gợi mở và gợi ý, không đưa đáp số. Khi học sinh đã làm xong, bật nút `Chấm bài đã làm` để AI nhận xét đúng/sai, góp ý và trình bày lời giải mẫu để đối chiếu; nếu chưa gửi bài làm, AI sẽ hỏi phần đã làm thay vì tự giải. Chỉ dẫn này được truyền bằng cờ `checkWork` riêng tới API. Người dùng có thể mở camera để chụp (chọn camera trước/sau) hoặc chọn ảnh có sẵn. Ảnh JPEG/PNG/WebP tối đa 3 MB được gửi đến backend rồi chuyển cho Gemini phân tích. Camera cần được cấp quyền; khi deploy, trình duyệt yêu cầu HTTPS. Ảnh không được lưu vào Vercel hoặc localStorage; lịch sử trình duyệt chỉ ghi tên ảnh.
 
 ```env
 VITE_API_BASE_URL=http://localhost:3000/api
@@ -67,8 +67,6 @@ Không đặt API key của mô hình AI trong frontend.
 
 ## Deploy trên Vercel
 Import repository vào Vercel; cấu hình build là `npm run build`, output là `dist`. Vercel Functions nằm trong `api/`, gồm `GET /api/content` và `POST /api/ai/chat`. Thêm `GEMINI_API_KEY` trong Project Settings → Environment Variables rồi redeploy.
-
-AI giới hạn 20 câu hỏi mỗi 15 phút cho mỗi IP. Để bộ giới hạn dùng chung giữa các serverless instance, cấu hình thêm `UPSTASH_REDIS_REST_URL` và `UPSTASH_REDIS_REST_TOKEN` trong Vercel. Nếu không cấu hình Redis, giới hạn chỉ được giữ trong từng instance và có thể không đồng nhất khi Vercel scale.
 
 Backend cung cấp `GET /api/content`, `GET /api/progress`, `POST /api/progress/lessons/:lessonId` và `POST /api/progress/quiz`. Tiến độ được lưu trong `data/progress.json` (thư mục này không đưa vào Git); có thể đặt `PROGRESS_FILE` để dùng đường dẫn trên ổ đĩa bền vững.
 

@@ -15,7 +15,6 @@
         "cors": "^2.8.5",
         "dotenv": "^17.2.2",
         "express": "^5.1.0",
-        "express-rate-limit": "^8.7.0",
         "katex": "^0.18.10",
         "react": "latest",
         "react-dom": "latest",
