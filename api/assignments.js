@@ -28,11 +28,16 @@ export default async function handler(req, res) {
             const { data: owners, error: ownerError } = ownerIds.length
                 ? await db
                       .from("account_users")
-                      .select("id, username")
+                      .select("id, display_name, username")
                       .in("id", ownerIds)
                 : { data: [], error: null };
             if (ownerError) throw ownerError;
-            const usernames = new Map(owners.map((owner) => [owner.id, owner.username]));
+            const displayNames = new Map(
+                owners.map((owner) => [
+                    owner.id,
+                    owner.display_name || owner.username,
+                ]),
+            );
             const { data: ownSubmissions, error: submissionError } = await db
                 .from("math_submissions")
                 .select("assignment_id, answer, teacher_feedback, submitted_at, updated_at")
@@ -48,7 +53,7 @@ export default async function handler(req, res) {
                 assignments: assignments.map((assignment) => ({
                     ...assignment,
                     creatorUsername:
-                        usernames.get(assignment.created_by) ?? "Giáo viên",
+                        displayNames.get(assignment.created_by) ?? "Giáo viên",
                     submission: submissions.get(assignment.id) ?? null,
                 })),
             });
@@ -81,7 +86,7 @@ export default async function handler(req, res) {
         return res.status(201).json({
             assignment: {
                 ...assignment,
-                creatorUsername: publicUser(user).username,
+                creatorUsername: publicUser(user).displayName,
                 submission: null,
             },
         });

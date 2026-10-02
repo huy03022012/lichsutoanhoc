@@ -37,27 +37,49 @@ export function getDatabase() {
 
 export function normalizeUsername(value) {
     if (typeof value !== "string") return "";
-    return value
-        .normalize("NFC")
-        .trim()
-        .replace(/\s+/gu, " ")
-        .toLowerCase();
+    return value.trim().toLowerCase();
 }
 
 export function validateUsername(value) {
     const username = normalizeUsername(value);
+    if (
+        username.length < 3 ||
+        username.length > 24 ||
+        !/^[a-z0-9]+$/.test(username)
+    ) {
+        throw new HttpError(
+            400,
+            "Tên đăng nhập phải viết liền không dấu, chỉ gồm chữ cái a-z và số 0-9, dài 3–24 ký tự.",
+        );
+    }
+    return username;
+}
+
+export function normalizeLoginUsername(value) {
+    if (typeof value !== "string") {
+        throw new HttpError(400, "Tên đăng nhập không hợp lệ.");
+    }
+    const username = value.normalize("NFC").trim().replace(/\s+/gu, " ").toLowerCase();
     const length = Array.from(username).length;
     if (
         length < 3 ||
         length > 24 ||
         !/^[\p{L}\p{N}][\p{L}\p{N}._ -]*$/u.test(username)
     ) {
-        throw new HttpError(
-            400,
-            "Tên tài khoản cần dài 3–24 ký tự, bắt đầu bằng chữ hoặc số và chỉ dùng chữ, số, khoảng trắng, dấu chấm, gạch ngang hoặc gạch dưới.",
-        );
+        throw new HttpError(400, "Tên đăng nhập không hợp lệ.");
     }
     return username;
+}
+
+export function validateDisplayName(value) {
+    if (typeof value !== "string") {
+        throw new HttpError(400, "Vui lòng nhập tên hiển thị.");
+    }
+    const displayName = value.normalize("NFC").trim().replace(/\s+/gu, " ");
+    if (Array.from(displayName).length < 1 || Array.from(displayName).length > 60) {
+        throw new HttpError(400, "Tên hiển thị cần dài từ 1 đến 60 ký tự.");
+    }
+    return displayName;
 }
 
 export function validatePassword(value) {
@@ -213,7 +235,9 @@ export async function getSessionUser(db, req) {
     }
     const { data: user, error: userError } = await db
         .from("account_users")
-        .select("id, username, role, is_locked, is_root_admin, created_at")
+        .select(
+            "id, username, display_name, role, is_locked, is_root_admin, created_at",
+        )
         .eq("id", session.user_id)
         .maybeSingle();
     if (userError) throw userError;
@@ -235,6 +259,17 @@ export async function requireUser(db, req) {
     return user;
 }
 
+export async function requireAuthenticatedRequest(req, res, context) {
+    try {
+        const db = getDatabase();
+        await requireUser(db, req);
+        return true;
+    } catch (error) {
+        sendApiError(res, error, context);
+        return false;
+    }
+}
+
 export function requireRole(user, roles) {
     if (!roles.includes(user.role)) {
         throw new HttpError(403, "Bạn không có quyền thực hiện thao tác này.");
@@ -245,6 +280,7 @@ export function publicUser(user) {
     return {
         id: user.id,
         username: user.username,
+        displayName: user.display_name || user.username,
         role: user.role,
         is_locked: user.is_locked,
         is_root_admin: user.is_root_admin === true,

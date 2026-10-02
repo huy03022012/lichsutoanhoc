@@ -9,6 +9,7 @@ import {
     requireRole,
     requireUser,
     sendApiError,
+    validateDisplayName,
     validatePassword,
     validateUsername,
 } from "../../src/services/accountAuth.js";
@@ -25,7 +26,9 @@ export default async function handler(req, res) {
         if (req.method === "GET") {
             let query = db
                 .from("account_users")
-                .select("id, username, role, is_locked, is_root_admin, created_at")
+                .select(
+                    "id, username, display_name, role, is_locked, is_root_admin, created_at",
+                )
                 .order("created_at", { ascending: false });
             if (currentUser.role === "admin") {
                 query = query.in("role", ["student", "teacher"]);
@@ -136,7 +139,9 @@ export default async function handler(req, res) {
         }
         const { data: target, error: targetError } = await db
             .from("account_users")
-            .select("id, username, role, is_locked, is_root_admin, created_at")
+            .select(
+                "id, username, display_name, role, is_locked, is_root_admin, created_at",
+            )
             .eq("id", userId)
             .maybeSingle();
         if (targetError) throw targetError;
@@ -234,6 +239,9 @@ export default async function handler(req, res) {
         if (Object.hasOwn(changes, "username")) {
             updates.username = validateUsername(changes.username);
         }
+        if (Object.hasOwn(changes, "displayName")) {
+            updates.display_name = validateDisplayName(changes.displayName);
+        }
 
         let passwordHash;
         if (Object.hasOwn(changes, "password")) {
@@ -250,7 +258,7 @@ export default async function handler(req, res) {
                 .update(updates)
                 .eq("id", target.id);
             if (error?.code === "23505") {
-                throw new HttpError(409, "Tên tài khoản này đã được sử dụng.");
+                throw new HttpError(409, "Tên đăng nhập đã được sử dụng.");
             }
             if (error) throw error;
         }
@@ -277,7 +285,9 @@ export default async function handler(req, res) {
 
         const { data: updatedUser, error: updatedError } = await db
             .from("account_users")
-            .select("id, username, role, is_locked, is_root_admin, created_at")
+            .select(
+                "id, username, display_name, role, is_locked, is_root_admin, created_at",
+            )
             .eq("id", target.id)
             .single();
         if (updatedError) throw updatedError;

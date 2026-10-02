@@ -1,33 +1,58 @@
 import { useState } from "react";
 import { submitAccountAction } from "../../services/api.js";
 
-export default function AccountDialog({ onClose, onAuthenticated }) {
+export default function AccountDialog({
+    onClose = () => {},
+    onAuthenticated,
+    required = false,
+}) {
     const [mode, setMode] = useState("login");
+    const [displayName, setDisplayName] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [passwordConfirmation, setPasswordConfirmation] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
+    const [usernameError, setUsernameError] = useState("");
     const [loading, setLoading] = useState(false);
 
     async function submit(event) {
         event.preventDefault();
         setLoading(true);
         setError("");
+        setUsernameError("");
+        if (mode === "register" && password !== passwordConfirmation) {
+            setError("Mật khẩu nhập lại chưa khớp.");
+            setLoading(false);
+            return;
+        }
         try {
             const result = await submitAccountAction(mode, {
-                username: username.trim().toLowerCase(),
+                username,
+                displayName,
                 password,
+                passwordConfirmation,
             });
             onAuthenticated(result.user);
         } catch (requestError) {
-            setError(requestError.message);
+            if (
+                mode === "register" &&
+                requestError.message === "Tên đăng nhập đã được sử dụng."
+            ) {
+                setUsernameError(requestError.message);
+            } else {
+                setError(requestError.message);
+            }
         } finally {
             setLoading(false);
         }
     }
 
     return (
-        <div className="accountDialogBackdrop" onMouseDown={onClose}>
+        <div
+            className="accountDialogBackdrop"
+            onMouseDown={required ? undefined : onClose}
+        >
             <section
                 className="accountDialog"
                 role="dialog"
@@ -44,27 +69,73 @@ export default function AccountDialog({ onClose, onAuthenticated }) {
                             {mode === "login" ? "Đăng nhập" : "Đăng ký học sinh"}
                         </h2>
                     </div>
-                    <button
-                        className="secondary"
-                        type="button"
-                        onClick={onClose}
-                        aria-label="Đóng"
-                    >
-                        ×
-                    </button>
+                    {!required && (
+                        <button
+                            className="secondary"
+                            type="button"
+                            onClick={onClose}
+                            aria-label="Đóng"
+                        >
+                            ×
+                        </button>
+                    )}
                 </div>
                 <form className="accountForm" onSubmit={submit}>
+                    {mode === "register" && (
+                        <label>
+                            Tên hiển thị
+                            <input
+                                autoComplete="name"
+                                maxLength={60}
+                                required
+                                value={displayName}
+                                onChange={(event) =>
+                                    setDisplayName(event.target.value)
+                                }
+                                placeholder="Ví dụ: Lê Hồ Hoàng Huy"
+                            />
+                        </label>
+                    )}
                     <label>
-                        Tên tài khoản
+                        Tên đăng nhập
                         <input
                             autoComplete="username"
                             minLength={3}
                             maxLength={24}
                             required
+                            pattern={
+                                mode === "register"
+                                    ? "[A-Za-z0-9]{3,24}"
+                                    : undefined
+                            }
+                            title={
+                                mode === "register"
+                                    ? "Viết liền, không dấu; chỉ dùng chữ cái a-z và số 0-9."
+                                    : undefined
+                            }
                             value={username}
-                            onChange={(event) => setUsername(event.target.value)}
-                            placeholder="Ví dụ: Lê Hồ Hoàng Huy"
+                            autoCapitalize="none"
+                            spellCheck="false"
+                            aria-invalid={Boolean(usernameError)}
+                            aria-describedby={
+                                usernameError ? "account-username-error" : undefined
+                            }
+                            onChange={(event) => {
+                                setUsername(event.target.value);
+                                setUsernameError("");
+                                setError("");
+                            }}
+                            placeholder="Ví dụ: lehohoanghuy"
                         />
+                        {usernameError && (
+                            <span
+                                id="account-username-error"
+                                className="error"
+                                role="alert"
+                            >
+                                {usernameError}
+                            </span>
+                        )}
                     </label>
                     <label>
                         Mật khẩu
@@ -94,10 +165,28 @@ export default function AccountDialog({ onClose, onAuthenticated }) {
                             </button>
                         </span>
                     </label>
+                    {mode === "register" && (
+                        <label>
+                            Nhập lại mật khẩu
+                            <input
+                                autoComplete="new-password"
+                                minLength={8}
+                                maxLength={128}
+                                required
+                                type={showPassword ? "text" : "password"}
+                                value={passwordConfirmation}
+                                onChange={(event) => {
+                                    setPasswordConfirmation(event.target.value);
+                                    setError("");
+                                }}
+                                placeholder="Nhập lại mật khẩu"
+                            />
+                        </label>
+                    )}
                     <p className="muted accountHint">
-                        Tên tài khoản dài 3–24 ký tự; có thể dùng chữ tiếng Việt,
-                        khoảng trắng, số, dấu chấm, gạch ngang hoặc gạch dưới.
-                        Đăng ký mới mặc định là học sinh.
+                        {mode === "register"
+                            ? "Tên đăng nhập viết liền, không dấu, dài 3–24 ký tự; chỉ dùng chữ cái a-z và số 0-9. Tên hiển thị có thể viết tiếng Việt. Đăng ký mới mặc định là học sinh."
+                            : "Nhập tên đăng nhập và mật khẩu của bạn."}
                     </p>
                     {error && (
                         <p className="error" role="alert">
@@ -123,6 +212,8 @@ export default function AccountDialog({ onClose, onAuthenticated }) {
                             );
                             setShowPassword(false);
                             setError("");
+                            setUsernameError("");
+                            setPasswordConfirmation("");
                         }}
                     >
                         {mode === "login" ? "Đăng ký học sinh" : "Đăng nhập"}

@@ -253,6 +253,18 @@ nav button:hover {
 .sectionHeader {
     margin-bottom: 22px;
 }
+.loginRequired {
+    max-width: 620px;
+    margin: 64px auto;
+    text-align: center;
+}
+.loginRequired h1 {
+    margin: 14px 0 8px;
+}
+.loginRequired p {
+    margin: 0 auto 22px;
+    line-height: 1.6;
+}
 .accountSearch {
     display: flex;
     gap: 10px;

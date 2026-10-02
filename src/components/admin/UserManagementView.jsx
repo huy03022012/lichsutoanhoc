@@ -28,6 +28,9 @@ function ManagedUserRow({
     onDeletionRequested,
 }) {
     const [username, setUsername] = useState(user.username);
+    const [displayName, setDisplayName] = useState(
+        user.displayName || user.username,
+    );
     const [password, setPassword] = useState("");
     const [role, setRole] = useState(user.role);
     const [isLocked, setIsLocked] = useState(user.is_locked);
@@ -90,6 +93,9 @@ function ManagedUserRow({
         if (username.trim().toLowerCase() !== user.username) {
             changes.username = username;
         }
+        if (displayName.trim() !== (user.displayName || user.username)) {
+            changes.displayName = displayName;
+        }
         if (password) changes.password = password;
         if (isSuperAdmin && role !== user.role) changes.role = role;
         if (isSuperAdmin && isLocked !== user.is_locked) {
@@ -115,7 +121,10 @@ function ManagedUserRow({
     return (
         <details className="managedUser">
             <summary>
-                <span>{user.username}</span>
+                <span>
+                    {user.displayName || user.username}{" "}
+                    <span className="muted">@{user.username}</span>
+                </span>
                 <span className="tag">{roleLabels[user.role]}</span>
                 {user.is_root_admin && (
                     <span className="tag">Super admin gốc</span>
@@ -138,11 +147,29 @@ function ManagedUserRow({
                                 <label>
                                     Tên đăng nhập
                                     <input
+                                        pattern={
+                                            /^[a-z0-9]{3,24}$/.test(user.username)
+                                                ? "[A-Za-z0-9]{3,24}"
+                                                : undefined
+                                        }
                                         minLength={3}
                                         maxLength={24}
                                         value={username}
+                                        title="Viết liền, không dấu; chỉ dùng chữ cái a-z và số 0-9."
+                                        autoCapitalize="none"
+                                        spellCheck="false"
                                         onChange={(event) =>
                                             setUsername(event.target.value)
+                                        }
+                                    />
+                                </label>
+                                <label>
+                                    Tên hiển thị
+                                    <input
+                                        maxLength={60}
+                                        value={displayName}
+                                        onChange={(event) =>
+                                            setDisplayName(event.target.value)
                                         }
                                     />
                                 </label>
@@ -390,7 +417,7 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
         .replace(/\p{Diacritic}/gu, "")
         .toLocaleLowerCase("vi");
     const filteredUsers = users.filter((managedUser) => {
-        const searchableText = `${managedUser.username} ${roleLabels[managedUser.role]}`
+        const searchableText = `${managedUser.displayName || ""} ${managedUser.username} ${roleLabels[managedUser.role]}`
             .normalize("NFD")
             .replace(/\p{Diacritic}/gu, "")
             .toLocaleLowerCase("vi");

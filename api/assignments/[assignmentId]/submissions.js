@@ -95,17 +95,21 @@ export default async function handler(req, res) {
             const { data: students, error: studentsError } = studentIds.length
                 ? await db
                       .from("account_users")
-                      .select("id, username")
+                      .select("id, display_name, username")
                       .in("id", studentIds)
                 : { data: [], error: null };
             if (studentsError) throw studentsError;
-            const usernames = new Map(
-                students.map((student) => [student.id, student.username]),
+            const displayNames = new Map(
+                students.map((student) => [
+                    student.id,
+                    student.display_name || student.username,
+                ]),
             );
             return res.status(200).json({
                 submissions: submissions.map((submission) => ({
                     ...submission,
-                    studentUsername: usernames.get(submission.student_id) ?? "Học sinh",
+                    studentUsername:
+                        displayNames.get(submission.student_id) ?? "Học sinh",
                 })),
             });
         }

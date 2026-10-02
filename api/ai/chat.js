@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { validateAiImage } from "../../src/services/aiImage.js";
 import { AI_SYSTEM_INSTRUCTION } from "../../src/services/aiPrompt.js";
+import { requireAuthenticatedRequest } from "../../src/services/accountAuth.js";
 
 const model = "gemini-3.5-flash-lite";
 
@@ -9,6 +10,10 @@ export default async function handler(req, res) {
     if (req.method !== "POST") {
         res.setHeader("Allow", "POST");
         return res.status(405).json({ error: "Phương thức không được hỗ trợ." });
+    }
+
+    if (!(await requireAuthenticatedRequest(req, res, "Lỗi xác thực AI:"))) {
+        return;
     }
 
     const message =

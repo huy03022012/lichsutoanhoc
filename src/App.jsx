@@ -1023,12 +1023,25 @@ function App() {
     const [authDialogOpen, setAuthDialogOpen] = useState(false);
     const [authNotice, setAuthNotice] = useState("");
 
-    // Tải nội dung ban đầu một lần; trang có trạng thái tải và lỗi riêng.
+    // Chỉ tải học liệu sau khi đã xác thực tài khoản.
     useEffect(() => {
+        if (!user) {
+            setContent(null);
+            setError("");
+            return undefined;
+        }
+        let active = true;
         getContent()
-            .then(setContent)
-            .catch((err) => setError(err.message));
-    }, []);
+            .then((result) => {
+                if (active) setContent(result);
+            })
+            .catch((err) => {
+                if (active) setError(err.message);
+            });
+        return () => {
+            active = false;
+        };
+    }, [user?.id]);
 
     useEffect(() => {
         let active = true;
@@ -1037,10 +1050,12 @@ function App() {
                 if (!active) return;
                 setUser(result.user);
                 if (result.notice) setAuthNotice(result.notice);
+                if (!result.user) setAuthDialogOpen(true);
             })
             .catch((requestError) => {
                 if (!active) return;
                 setAuthNotice(requestError.message);
+                setAuthDialogOpen(true);
             })
             .finally(() => {
                 if (active) setAuthLoading(false);
@@ -1055,7 +1070,9 @@ function App() {
         try {
             await submitAccountAction("logout");
             setUser(null);
+            setContent(null);
             setView("home");
+            setAuthDialogOpen(true);
         } catch (requestError) {
             setAuthNotice(requestError.message);
         }
@@ -1069,6 +1086,66 @@ function App() {
         window.addEventListener("keydown", closeMenuOnEscape);
         return () => window.removeEventListener("keydown", closeMenuOnEscape);
     }, []);
+    if (authLoading)
+        return (
+            <div className="app">
+                <main>
+                    <div className="card empty">Đang kiểm tra đăng nhập…</div>
+                </main>
+            </div>
+        );
+    if (!user)
+        return (
+            <div className="app">
+                <header className="top">
+                    <div className="brand">
+                        <div className="logo">∑</div>
+                        <div>
+                            MathHistory <span>AI</span>
+                        </div>
+                    </div>
+                </header>
+                <main>
+                    {authNotice && (
+                        <p className="authNotice" role="alert">
+                            {authNotice}
+                        </p>
+                    )}
+                    <section className="view active loginRequired">
+                        <span className="tag">MathHistory AI</span>
+                        <h1>Đăng nhập để tiếp tục</h1>
+                        <p className="muted">
+                            Bạn cần đăng nhập hoặc tạo tài khoản học sinh để sử
+                            dụng học liệu, bài tập và trợ giảng AI.
+                        </p>
+                        <button
+                            className="primary"
+                            type="button"
+                            onClick={() => setAuthDialogOpen(true)}
+                        >
+                            Đăng nhập / Đăng ký
+                        </button>
+                    </section>
+                </main>
+                {authDialogOpen && (
+                    <AccountDialog
+                        required
+                        onAuthenticated={(signedInUser) => {
+                            setUser(signedInUser);
+                            setAuthDialogOpen(false);
+                            setAuthNotice("");
+                            setView("home");
+                        }}
+                    />
+                )}
+                <footer className="footer">
+                    <div>MathHistory AI · Học liệu lịch sử Toán học</div>
+                    <small className="footerAuthor">
+                        by Lê Hồ Hoàng Huy
+                    </small>
+                </footer>
+            </div>
+        );
     if (error)
         return (
             <div className="app">
@@ -1211,7 +1288,8 @@ function App() {
                         {user ? (
                             <>
                                 <span>
-                                    {user.username} · {roleLabels[user.role]}
+                                    {user.displayName || user.username} ·{" "}
+                                    {roleLabels[user.role]}
                                 </span>
                                 <button type="button" onClick={signOut}>
                                     Đăng xuất
@@ -1241,7 +1319,8 @@ function App() {
                     ) : user ? (
                         <>
                             <span className="accountIdentity">
-                                {user.username} · {roleLabels[user.role]}
+                                {user.displayName || user.username} ·{" "}
+                                {roleLabels[user.role]}
                             </span>
                             <button
                                 className="secondary"

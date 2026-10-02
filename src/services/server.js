@@ -11,6 +11,9 @@ import deletionRequestsHandler from "../../api/admin/deletion-requests.js";
 import assignmentsHandler from "../../api/assignments.js";
 import assignmentSubmissionsHandler from "../../api/assignments/[assignmentId]/submissions.js";
 import {
+    requireAuthenticatedRequest,
+} from "./accountAuth.js";
+import {
     existsSync,
     mkdirSync,
     readFileSync,
@@ -67,6 +70,18 @@ app.set("trust proxy", process.env.TRUST_PROXY === "1" ? 1 : false);
 app.use(cors({ origin: clientOrigins }));
 // Request chat có thể chứa ảnh base64 3 MB; giới hạn body để chống payload quá lớn.
 app.use(express.json({ limit: "4.2mb" }));
+app.use("/api", async (req, res, next) => {
+    if (req.path === "/auth") return next();
+    if (
+        await requireAuthenticatedRequest(
+            req,
+            res,
+            "Lỗi xác thực yêu cầu API:",
+        )
+    ) {
+        return next();
+    }
+});
 app.use(express.static(distDirectory));
 
 // Trả nội dung dùng chung của website; không gửi đáp án quiz xuống frontend.

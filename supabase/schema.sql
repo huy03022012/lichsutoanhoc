@@ -2,6 +2,7 @@
 create table if not exists public.account_users (
     id uuid primary key default gen_random_uuid(),
     username text not null unique,
+    display_name text,
     password_hash text not null,
     role text not null default 'student'
         check (role in ('student', 'teacher', 'admin', 'super_admin')),
@@ -9,6 +10,20 @@ create table if not exists public.account_users (
     is_root_admin boolean not null default false,
     created_at timestamptz not null default now()
 );
+
+alter table public.account_users
+    add column if not exists display_name text;
+update public.account_users
+set display_name = username
+where display_name is null or btrim(display_name) = '';
+alter table public.account_users
+    alter column display_name set not null;
+
+alter table public.account_users
+    drop constraint if exists account_users_display_name_check;
+alter table public.account_users
+    add constraint account_users_display_name_check
+    check (char_length(display_name) between 1 and 60);
 
 alter table public.account_users
     add column if not exists is_root_admin boolean not null default false;
@@ -166,9 +181,10 @@ begin
     end if;
 
     delete from public.math_assignments where created_by = p_user_id;
-    update public.account_deletion_requests
-    set status = 'rejected', reviewed_at = now()
-    where target_user_id = p_user_id and status = 'pending';
+    delete from public.account_deletion_requests
+    where target_user_id = p_user_id
+       or requested_by = p_user_id
+       or reviewed_by = p_user_id;
     delete from public.account_users where id = p_user_id;
 end;
 $$;

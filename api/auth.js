@@ -8,8 +8,10 @@ import {
     getSessionUser,
     hashPassword,
     HttpError,
+    normalizeLoginUsername,
     publicUser,
     sendApiError,
+    validateDisplayName,
     validatePassword,
     validateUsername,
     verifyPassword,
@@ -60,23 +62,32 @@ export default async function handler(req, res) {
             return res.status(200).json({ user: null });
         }
 
-        const username = validateUsername(req.body?.username);
-        const password = validatePassword(req.body?.password);
-
         if (action === "register") {
+            const username = validateUsername(req.body?.username);
+            const displayName = validateDisplayName(req.body?.displayName);
+            const password = validatePassword(req.body?.password);
+            if (
+                typeof req.body?.passwordConfirmation !== "string" ||
+                req.body.passwordConfirmation !== password
+            ) {
+                throw new HttpError(400, "Mật khẩu nhập lại chưa khớp.");
+            }
             const passwordHash = await hashPassword(password);
             const { data: user, error } = await db
                 .from("account_users")
                 .insert({
                     username,
+                    display_name: displayName,
                     password_hash: passwordHash,
                     role: "student",
                     is_locked: false,
                 })
-                .select("id, username, role, is_locked, is_root_admin, created_at")
+                .select(
+                    "id, username, display_name, role, is_locked, is_root_admin, created_at",
+                )
                 .single();
             if (error?.code === "23505") {
-                throw new HttpError(409, "Tên tài khoản này đã được sử dụng.");
+                throw new HttpError(409, "Tên đăng nhập đã được sử dụng.");
             }
             if (error) throw error;
             await createSession(db, req, res, user.id);
@@ -84,9 +95,13 @@ export default async function handler(req, res) {
         }
 
         if (action === "login") {
+            const username = normalizeLoginUsername(req.body?.username);
+            const password = validatePassword(req.body?.password);
             const { data: user, error } = await db
                 .from("account_users")
-                .select("id, username, password_hash, role, is_locked, is_root_admin, created_at")
+                .select(
+                    "id, username, display_name, password_hash, role, is_locked, is_root_admin, created_at",
+                )
                 .eq("username", username)
                 .maybeSingle();
             if (error) throw error;
