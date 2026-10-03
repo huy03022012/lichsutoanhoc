@@ -307,7 +307,7 @@ nav button:hover {
 }
 .captchaField {
     display: grid;
-    justify-items: start;
+    justify-items: center;
     gap: 8px;
     min-height: 66px;
 }
@@ -484,6 +484,7 @@ nav button:hover {
 }
 .selectVisibleAccounts {
     margin: 0 0 12px;
+    gap: 9px;
 }
 .managedUserSelectRow {
     display: flex;

@@ -17,7 +17,11 @@ import {
     verifyPassword,
 } from "../src/services/accountAuth.js";
 import { verifyTurnstileToken } from "../src/services/turnstileVerify.js";
-import { enforceLoginRateLimit } from "../src/services/loginRateLimit.js";
+import {
+    checkLoginLockout,
+    recordLoginFailure,
+    resetLoginFailures,
+} from "../src/services/loginRateLimit.js";
 
 const DUMMY_PASSWORD_HASH =
     "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -157,25 +161,14 @@ export default async function handler(req, res) {
         if (action === "login") {
             const username = normalizeLoginUsername(req.body?.username);
             const password = validatePassword(req.body?.password);
-            await enforceLoginRateLimit({
-                db,
-                req,
-                res,
-                type: "ip",
-                value: "",
-                maxAttempts: 40,
-            });
             await verifyTurnstileToken(req.body?.captchaToken, {
                 expectedHostname: getRequestHostname(req),
                 expectedAction: "login",
             });
-            await enforceLoginRateLimit({
+            await checkLoginLockout({
                 db,
-                req,
+                username,
                 res,
-                type: "username",
-                value: username,
-                maxAttempts: 10,
             });
             const { data: user, error } = await db
                 .from("account_users")
@@ -190,11 +183,13 @@ export default async function handler(req, res) {
                 user?.password_hash ?? DUMMY_PASSWORD_HASH,
             );
             if (!user || !passwordMatches) {
+                await recordLoginFailure({ db, username, res });
                 throw new HttpError(401, "Tên tài khoản hoặc mật khẩu chưa đúng.");
             }
             if (user.is_locked) {
                 throw new HttpError(423, "Tài khoản đã bị khóa. Hãy liên hệ quản trị viên.");
             }
+            await resetLoginFailures({ db, username });
             await createSession(db, req, res, user.id);
             return res.status(200).json({ user: publicUser(user) });
         }

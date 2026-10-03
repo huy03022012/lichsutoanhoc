@@ -97,16 +97,49 @@ create table if not exists public.account_login_rate_limits (
     bucket_key text primary key,
     window_started_at timestamptz not null,
     attempt_count integer not null check (attempt_count > 0),
-    updated_at timestamptz not null default now()
+    updated_at timestamptz not null default now(),
+    blocked_until timestamptz,
+    limit_type text not null default 'legacy'
 );
+
+alter table public.account_login_rate_limits
+    add column if not exists blocked_until timestamptz;
+alter table public.account_login_rate_limits
+    add column if not exists limit_type text not null default 'legacy';
 
 create index if not exists account_login_rate_limits_window_started_at_idx
     on public.account_login_rate_limits (window_started_at);
 
-create or replace function public.consume_account_login_rate_limit(
-    p_bucket_keys text[],
-    p_limits integer[],
-    p_window_seconds integer
+create or replace function public.check_account_login_lockout(
+    p_bucket_key text
+)
+returns integer
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+    v_blocked_until timestamptz;
+begin
+    if p_bucket_key is null or char_length(p_bucket_key) > 128 then
+        raise exception 'Invalid login lockout key';
+    end if;
+
+    select blocked_until into v_blocked_until
+    from public.account_login_rate_limits
+    where bucket_key = p_bucket_key
+      and limit_type = 'username';
+
+    if v_blocked_until is null or v_blocked_until <= clock_timestamp() then
+        return 0;
+    end if;
+    return ceil(extract(epoch from (v_blocked_until - clock_timestamp())))::integer;
+end;
+$$;
+
+create or replace function public.record_account_login_failure(
+    p_bucket_key text,
+    p_max_attempts integer
 )
 returns integer
 language plpgsql
@@ -115,79 +148,87 @@ set search_path = pg_catalog, public
 as $$
 declare
     v_now timestamptz := clock_timestamp();
-    v_bucket_key text;
-    v_limit integer;
-    v_window_started_at timestamptz;
     v_attempt_count integer;
-    v_retry_after integer := 0;
+    v_blocked_until timestamptz;
 begin
-    if coalesce(array_length(p_bucket_keys, 1), 0) = 0
-       or array_length(p_bucket_keys, 1) is distinct from array_length(p_limits, 1)
-       or p_window_seconds is null
-       or p_window_seconds < 1
-       or p_window_seconds > 86400
-       or exists (
-           select 1
-           from unnest(p_bucket_keys, p_limits) as input(bucket_key, attempt_limit)
-           where bucket_key is null
-              or char_length(bucket_key) > 128
-              or attempt_limit is null
-              or attempt_limit < 1
-       ) then
-        raise exception 'Invalid login rate limit input';
+    if p_bucket_key is null
+       or char_length(p_bucket_key) > 128
+       or p_max_attempts is distinct from 10 then
+        raise exception 'Invalid login failure input';
     end if;
 
-    for v_bucket_key, v_limit in
-        select input.bucket_key, input.attempt_limit
-        from unnest(p_bucket_keys, p_limits) as input(bucket_key, attempt_limit)
-        order by input.bucket_key
-    loop
-        insert into public.account_login_rate_limits (
-            bucket_key, window_started_at, attempt_count, updated_at
-        )
-        values (v_bucket_key, v_now, 1, v_now)
-        on conflict (bucket_key) do update
-        set window_started_at = case
-                when public.account_login_rate_limits.window_started_at
-                     <= v_now - make_interval(secs => p_window_seconds)
-                    then v_now
-                else public.account_login_rate_limits.window_started_at
-            end,
-            attempt_count = case
-                when public.account_login_rate_limits.window_started_at
-                     <= v_now - make_interval(secs => p_window_seconds)
-                    then 1
-                else public.account_login_rate_limits.attempt_count + 1
-            end,
-            updated_at = v_now
-        returning window_started_at, attempt_count
-        into v_window_started_at, v_attempt_count;
-
-        if v_attempt_count > v_limit then
-            v_retry_after := greatest(
-                v_retry_after,
-                ceil(extract(epoch from (
-                    v_window_started_at
-                    + make_interval(secs => p_window_seconds)
-                    - v_now
-                )))::integer
-            );
-        end if;
-    end loop;
+    insert into public.account_login_rate_limits (
+        bucket_key, window_started_at, attempt_count, updated_at,
+        blocked_until, limit_type
+    )
+    values (p_bucket_key, v_now, 1, v_now, null, 'username')
+    on conflict (bucket_key) do update
+    set window_started_at = case
+            when public.account_login_rate_limits.limit_type <> 'username'
+                 or (public.account_login_rate_limits.blocked_until is not null
+                     and public.account_login_rate_limits.blocked_until <= v_now)
+                then v_now
+            else public.account_login_rate_limits.window_started_at
+        end,
+        attempt_count = case
+            when public.account_login_rate_limits.limit_type <> 'username'
+                 or (public.account_login_rate_limits.blocked_until is not null
+                     and public.account_login_rate_limits.blocked_until <= v_now)
+                then 1
+            else public.account_login_rate_limits.attempt_count + 1
+        end,
+        blocked_until = case
+            when public.account_login_rate_limits.limit_type = 'username'
+                 and public.account_login_rate_limits.blocked_until > v_now
+                then public.account_login_rate_limits.blocked_until
+            when public.account_login_rate_limits.limit_type = 'username'
+                 and public.account_login_rate_limits.blocked_until is null
+                 and public.account_login_rate_limits.attempt_count + 1 >= p_max_attempts
+                then v_now + make_interval(secs => 600 + floor(random() * 601)::integer)
+            else null
+        end,
+        limit_type = 'username',
+        updated_at = v_now
+    returning attempt_count, blocked_until
+    into v_attempt_count, v_blocked_until;
 
     with expired as (
         select bucket_key
         from public.account_login_rate_limits
-        where window_started_at < v_now - interval '1 day'
-        order by window_started_at
+        where updated_at < v_now - interval '1 day'
+        order by updated_at
         limit 100
     )
     delete from public.account_login_rate_limits
-    where bucket_key in (select bucket_key from expired);
+    where bucket_key in (select bucket_key from expired)
+      and bucket_key <> p_bucket_key;
 
-    return v_retry_after;
+    if v_attempt_count >= p_max_attempts and v_blocked_until is not null then
+        return ceil(extract(epoch from (v_blocked_until - clock_timestamp())))::integer;
+    end if;
+    return 0;
 end;
 $$;
+
+create or replace function public.reset_account_login_failures(
+    p_bucket_key text
+)
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+begin
+    if p_bucket_key is null or char_length(p_bucket_key) > 128 then
+        raise exception 'Invalid login lockout key';
+    end if;
+    delete from public.account_login_rate_limits
+    where bucket_key = p_bucket_key
+      and limit_type = 'username';
+end;
+$$;
+
+drop function if exists public.consume_account_login_rate_limit(text[], integer[], integer);
 
 create table if not exists public.math_assignments (
     id uuid primary key default gen_random_uuid(),
@@ -493,7 +534,11 @@ revoke all on function public.update_account_users(uuid[], text, boolean)
     from public, anon, authenticated;
 revoke all on function public.resolve_account_deletion_request(uuid, uuid, boolean)
     from public, anon, authenticated;
-revoke all on function public.consume_account_login_rate_limit(text[], integer[], integer)
+revoke all on function public.check_account_login_lockout(text)
+    from public, anon, authenticated;
+revoke all on function public.record_account_login_failure(text, integer)
+    from public, anon, authenticated;
+revoke all on function public.reset_account_login_failures(text)
     from public, anon, authenticated;
 grant execute on function public.delete_account_user(uuid) to service_role;
 grant execute on function public.delete_account_users(uuid[]) to service_role;
@@ -501,5 +546,9 @@ grant execute on function public.update_account_users(uuid[], text, boolean)
     to service_role;
 grant execute on function public.resolve_account_deletion_request(uuid, uuid, boolean)
     to service_role;
-grant execute on function public.consume_account_login_rate_limit(text[], integer[], integer)
+grant execute on function public.check_account_login_lockout(text)
+    to service_role;
+grant execute on function public.record_account_login_failure(text, integer)
+    to service_role;
+grant execute on function public.reset_account_login_failures(text)
     to service_role;
