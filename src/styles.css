@@ -305,6 +305,15 @@ nav button:hover {
     font-weight: 400;
     line-height: 1.45;
 }
+.captchaField {
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+    min-height: 66px;
+}
+.captchaField p {
+    margin: 0;
+}
 .accountSubmit {
     width: 100%;
 }

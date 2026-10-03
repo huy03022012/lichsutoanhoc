@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { submitAccountAction } from "../../services/api.js";
+import { loadTurnstile } from "../../services/turnstileClient.js";
 
 export default function AccountDialog({
     onClose = () => {},
@@ -17,6 +18,65 @@ export default function AccountDialog({
     const [error, setError] = useState("");
     const [usernameError, setUsernameError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [captchaToken, setCaptchaToken] = useState("");
+    const [captchaError, setCaptchaError] = useState("");
+    const captchaContainerRef = useRef(null);
+    const captchaWidgetIdRef = useRef(null);
+    const captchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
+    useEffect(() => {
+        if (mode !== "register") {
+            setCaptchaToken("");
+            setCaptchaError("");
+            return undefined;
+        }
+        if (!captchaSiteKey) {
+            setCaptchaError("Chưa cấu hình CAPTCHA cho giao diện đăng ký.");
+            return undefined;
+        }
+
+        let active = true;
+        loadTurnstile()
+            .then((turnstile) => {
+                if (!active || !captchaContainerRef.current) return;
+                captchaWidgetIdRef.current = turnstile.render(
+                    captchaContainerRef.current,
+                    {
+                        sitekey: captchaSiteKey,
+                        action: "register",
+                        callback: (token) => {
+                            setCaptchaToken(token);
+                            setCaptchaError("");
+                            setError("");
+                        },
+                        "expired-callback": () => {
+                            setCaptchaToken("");
+                            setCaptchaError("CAPTCHA đã hết hạn. Hãy xác thực lại.");
+                        },
+                        "error-callback": () => {
+                            setCaptchaToken("");
+                            setCaptchaError(
+                                "Không tải được CAPTCHA. Hãy thử làm mới hoặc kiểm tra kết nối.",
+                            );
+                        },
+                    },
+                );
+            })
+            .catch((loadError) => {
+                if (active) setCaptchaError(loadError.message);
+            });
+
+        return () => {
+            active = false;
+            if (
+                captchaWidgetIdRef.current !== null &&
+                window.turnstile
+            ) {
+                window.turnstile.remove(captchaWidgetIdRef.current);
+                captchaWidgetIdRef.current = null;
+            }
+        };
+    }, [mode, captchaSiteKey]);
 
     async function submit(event) {
         event.preventDefault();
@@ -28,15 +88,30 @@ export default function AccountDialog({
             setLoading(false);
             return;
         }
+        if (mode === "register" && !captchaToken) {
+            setError("Vui lòng hoàn thành xác thực CAPTCHA.");
+            setLoading(false);
+            return;
+        }
         try {
             const result = await submitAccountAction(mode, {
                 username,
                 displayName,
                 password,
                 passwordConfirmation,
+                ...(mode === "register" ? { captchaToken } : {}),
             });
             onAuthenticated(result.user);
         } catch (requestError) {
+            if (mode === "register") {
+                setCaptchaToken("");
+                if (
+                    captchaWidgetIdRef.current !== null &&
+                    window.turnstile
+                ) {
+                    window.turnstile.reset(captchaWidgetIdRef.current);
+                }
+            }
             if (
                 mode === "register" &&
                 requestError.message === "Tên đăng nhập đã được sử dụng."
@@ -275,6 +350,16 @@ export default function AccountDialog({
                             </span>
                         </label>
                     )}
+                    {mode === "register" && (
+                        <div className="captchaField">
+                            <div ref={captchaContainerRef} />
+                            {captchaError && (
+                                <p className="error" role="alert">
+                                    {captchaError}
+                                </p>
+                            )}
+                        </div>
+                    )}
                     <p className="muted accountHint">
                         {mode === "register"
                             ? "Tên đăng nhập dài 3–24 ký tự. Tên hiển thị có thể viết tiếng Việt. Đăng ký mới mặc định là học sinh."
@@ -285,7 +370,14 @@ export default function AccountDialog({
                             {error}
                         </p>
                     )}
-                    <button className="primary accountSubmit" disabled={loading}>
+                    <button
+                        className="primary accountSubmit"
+                        disabled={
+                            loading ||
+                            (mode === "register" &&
+                                (!captchaToken || !captchaSiteKey))
+                        }
+                    >
                         {loading
                             ? "Đang xử lý…"
                             : mode === "login"
