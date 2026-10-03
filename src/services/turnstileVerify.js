@@ -6,6 +6,7 @@ export async function verifyTurnstileToken(
         secretKey = process.env.TURNSTILE_SECRET_KEY,
         fetchImpl = fetch,
         expectedHostname,
+        expectedAction = "register",
     } = {},
 ) {
     if (!secretKey) {
@@ -60,7 +61,7 @@ export async function verifyTurnstileToken(
     }
     if (
         result?.success !== true ||
-        result?.action !== "register" ||
+        result?.action !== expectedAction ||
         !expectedHostname ||
         result?.hostname !== expectedHostname
     ) {

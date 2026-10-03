@@ -22,16 +22,35 @@ export default function AccountDialog({
     const [captchaError, setCaptchaError] = useState("");
     const captchaContainerRef = useRef(null);
     const captchaWidgetIdRef = useRef(null);
+    const errorTimerRef = useRef(null);
     const captchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
-    useEffect(() => {
-        if (mode !== "register") {
-            setCaptchaToken("");
-            setCaptchaError("");
-            return undefined;
+    function clearErrorTimer() {
+        if (errorTimerRef.current !== null) {
+            clearTimeout(errorTimerRef.current);
+            errorTimerRef.current = null;
         }
+    }
+
+    function clearError() {
+        clearErrorTimer();
+        setError("");
+    }
+
+    function showTemporaryError(message) {
+        clearErrorTimer();
+        setError(message);
+        errorTimerRef.current = setTimeout(() => {
+            setError("");
+            errorTimerRef.current = null;
+        }, 5000);
+    }
+
+    useEffect(() => {
+        setCaptchaToken("");
+        setCaptchaError("");
         if (!captchaSiteKey) {
-            setCaptchaError("Chưa cấu hình CAPTCHA cho giao diện đăng ký.");
+            setCaptchaError("Chưa cấu hình CAPTCHA cho giao diện.");
             return undefined;
         }
 
@@ -43,11 +62,11 @@ export default function AccountDialog({
                     captchaContainerRef.current,
                     {
                         sitekey: captchaSiteKey,
-                        action: "register",
+                        action: mode,
                         callback: (token) => {
                             setCaptchaToken(token);
                             setCaptchaError("");
-                            setError("");
+                            clearError();
                         },
                         "expired-callback": () => {
                             setCaptchaToken("");
@@ -68,6 +87,7 @@ export default function AccountDialog({
 
         return () => {
             active = false;
+            clearErrorTimer();
             if (
                 captchaWidgetIdRef.current !== null &&
                 window.turnstile
@@ -80,6 +100,7 @@ export default function AccountDialog({
 
     async function submit(event) {
         event.preventDefault();
+        clearErrorTimer();
         setLoading(true);
         setError("");
         setUsernameError("");
@@ -88,7 +109,7 @@ export default function AccountDialog({
             setLoading(false);
             return;
         }
-        if (mode === "register" && !captchaToken) {
+        if (!captchaToken) {
             setError("Vui lòng hoàn thành xác thực CAPTCHA.");
             setLoading(false);
             return;
@@ -99,18 +120,16 @@ export default function AccountDialog({
                 displayName,
                 password,
                 passwordConfirmation,
-                ...(mode === "register" ? { captchaToken } : {}),
+                captchaToken,
             });
             onAuthenticated(result.user);
         } catch (requestError) {
-            if (mode === "register") {
-                setCaptchaToken("");
-                if (
-                    captchaWidgetIdRef.current !== null &&
-                    window.turnstile
-                ) {
-                    window.turnstile.reset(captchaWidgetIdRef.current);
-                }
+            setCaptchaToken("");
+            if (
+                captchaWidgetIdRef.current !== null &&
+                window.turnstile
+            ) {
+                window.turnstile.reset(captchaWidgetIdRef.current);
             }
             if (
                 mode === "register" &&
@@ -118,7 +137,7 @@ export default function AccountDialog({
             ) {
                 setUsernameError(requestError.message);
             } else {
-                setError(requestError.message);
+                showTemporaryError(requestError.message);
             }
         } finally {
             setLoading(false);
@@ -129,7 +148,7 @@ export default function AccountDialog({
         setMode(nextMode);
         setShowPassword(false);
         setShowPasswordConfirmation(false);
-        setError("");
+        clearError();
         setUsernameError("");
         setPasswordConfirmation("");
     }
@@ -257,7 +276,7 @@ export default function AccountDialog({
                             onChange={(event) => {
                                 setUsername(event.target.value);
                                 setUsernameError("");
-                                setError("");
+                                clearError();
                             }}
                             placeholder="Ví dụ: lehohoanghuy"
                         />
@@ -327,7 +346,7 @@ export default function AccountDialog({
                                     value={passwordConfirmation}
                                     onChange={(event) => {
                                         setPasswordConfirmation(event.target.value);
-                                        setError("");
+                                        clearError();
                                     }}
                                     placeholder="Nhập lại mật khẩu"
                                 />
@@ -350,16 +369,14 @@ export default function AccountDialog({
                             </span>
                         </label>
                     )}
-                    {mode === "register" && (
-                        <div className="captchaField">
-                            <div ref={captchaContainerRef} />
-                            {captchaError && (
-                                <p className="error" role="alert">
-                                    {captchaError}
-                                </p>
-                            )}
-                        </div>
-                    )}
+                    <div className="captchaField">
+                        <div ref={captchaContainerRef} />
+                        {captchaError && (
+                            <p className="error" role="alert">
+                                {captchaError}
+                            </p>
+                        )}
+                    </div>
                     <p className="muted accountHint">
                         {mode === "register"
                             ? "Tên đăng nhập dài 3–24 ký tự. Tên hiển thị có thể viết tiếng Việt. Đăng ký mới mặc định là học sinh."
@@ -373,9 +390,7 @@ export default function AccountDialog({
                     <button
                         className="primary accountSubmit"
                         disabled={
-                            loading ||
-                            (mode === "register" &&
-                                (!captchaToken || !captchaSiteKey))
+                            loading || !captchaToken || !captchaSiteKey
                         }
                     >
                         {loading

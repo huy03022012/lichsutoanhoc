@@ -21,6 +21,19 @@ import { verifyTurnstileToken } from "../src/services/turnstileVerify.js";
 const DUMMY_PASSWORD_HASH =
     "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
+function getRequestHostname(req) {
+    const forwardedHost = req.headers["x-forwarded-host"];
+    const requestHost =
+        (typeof forwardedHost === "string" ? forwardedHost : req.headers.host)
+            ?.split(",")[0]
+            ?.trim() ?? "";
+    try {
+        return new URL(`http://${requestHost}`).hostname;
+    } catch {
+        throw new HttpError(400, "Tên miền yêu cầu không hợp lệ.");
+    }
+}
+
 export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     try {
@@ -114,22 +127,9 @@ export default async function handler(req, res) {
             ) {
                 throw new HttpError(400, "Mật khẩu nhập lại chưa khớp.");
             }
-            const forwardedHost = req.headers["x-forwarded-host"];
-            const requestHost =
-                (typeof forwardedHost === "string"
-                    ? forwardedHost
-                    : req.headers.host
-                )
-                    ?.split(",")[0]
-                    ?.trim() ?? "";
-            let expectedHostname = "";
-            try {
-                expectedHostname = new URL(`http://${requestHost}`).hostname;
-            } catch {
-                throw new HttpError(400, "Tên miền yêu cầu không hợp lệ.");
-            }
             await verifyTurnstileToken(req.body?.captchaToken, {
-                expectedHostname,
+                expectedHostname: getRequestHostname(req),
+                expectedAction: "register",
             });
             const passwordHash = await hashPassword(password);
             const { data: user, error } = await db
@@ -156,6 +156,10 @@ export default async function handler(req, res) {
         if (action === "login") {
             const username = normalizeLoginUsername(req.body?.username);
             const password = validatePassword(req.body?.password);
+            await verifyTurnstileToken(req.body?.captchaToken, {
+                expectedHostname: getRequestHostname(req),
+                expectedAction: "login",
+            });
             const { data: user, error } = await db
                 .from("account_users")
                 .select(
