@@ -47,7 +47,7 @@ function ManagedUserRow({
 
     async function deleteUser() {
         if (
-            user.role === "teacher" ||
+            currentUser.role !== "super_admin" ||
             user.is_root_admin ||
             user.id === currentUser.id
         ) {
@@ -236,11 +236,7 @@ function ManagedUserRow({
                         {loading ? "Đang lưu…" : "Lưu thay đổi"}
                     </button>
                 )}
-                {user.role === "teacher" ? (
-                    <p className="muted">
-                        Tài khoản giáo viên không được phép xóa.
-                    </p>
-                ) : currentUser.role === "super_admin" ? (
+                {currentUser.role === "super_admin" ? (
                     <button
                         className="secondary"
                         type="button"
@@ -487,7 +483,7 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
         const confirmed = globalThis.confirm(
             user.role === "admin"
                 ? `Gửi yêu cầu xóa cho ${selectedUserIds.length} học sinh để super admin duyệt?`
-                : `Xóa ${selectedUserIds.length} tài khoản đã chọn? Không thể xóa giáo viên; bài tập do tài khoản bị xóa tạo và bài nộp liên quan cũng sẽ bị xóa.`,
+                : `Xóa ${selectedUserIds.length} tài khoản đã chọn? Thao tác này không thể hoàn tác. Bài tập do các tài khoản bị xóa tạo và bài nộp liên quan cũng sẽ bị xóa.`,
         );
         if (!confirmed) return;
 
@@ -520,7 +516,7 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
                     <h1>Quản lý tài khoản</h1>
                     <p className="muted">
                         {user.role === "super_admin"
-                            ? "Cấp hoặc tước vai trò, khóa tài khoản, đổi thông tin và xóa tài khoản đủ điều kiện."
+                            ? "Cấp hoặc tước vai trò, khóa, đổi thông tin và xóa học sinh, giáo viên hoặc admin. Super admin gốc và super admin hoạt động cuối cùng được bảo vệ."
                             : "Đổi thông tin học sinh, giáo viên và gửi yêu cầu xóa tài khoản học sinh để super admin duyệt."}
                     </p>
                 </div>
@@ -632,11 +628,7 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
                                 disabled={
                                     bulkBusy ||
                                     (user.role === "admin" &&
-                                        !selectedStudentsOnly) ||
-                                    (user.role === "super_admin" &&
-                                        selectedUsers.some(
-                                            (item) => item.role === "teacher",
-                                        ))
+                                        !selectedStudentsOnly)
                                 }
                                 onClick={applyBulkDeletion}
                             >

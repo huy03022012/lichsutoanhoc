@@ -211,9 +211,6 @@ begin
     if target_is_root then
         raise exception 'Không thể xóa tài khoản super admin gốc.';
     end if;
-    if target_role = 'teacher' then
-        raise exception 'Không được phép xóa tài khoản giáo viên.';
-    end if;
     if target_role = 'super_admin' and not target_locked then
         perform pg_advisory_xact_lock(638274, 1);
         select count(*) into active_super_admin_count
