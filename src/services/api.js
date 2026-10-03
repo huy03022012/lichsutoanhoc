@@ -15,6 +15,14 @@ export function getContent() {
     return request("/content");
 }
 
+export function createLibraryLesson(lesson) {
+    return request("/library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(lesson),
+    });
+}
+
 // Các hàm tiến độ còn được giữ để bật lại khi có lưu trữ bền vững.
 export function getProgress() {
     return request("/progress");

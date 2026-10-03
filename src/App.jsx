@@ -6,6 +6,7 @@ import {
 } from "./services/aiImage.js";
 import {
     chatWithAI,
+    createLibraryLesson,
     getAccount,
     getContent,
     submitAccountAction,
@@ -213,9 +214,33 @@ function Stat({ value, label }) {
     );
 }
 // Thư viện lọc danh sách đã tải về; tìm kiếm không tạo yêu cầu API mới.
-function Library({ lessons, onReadMore }) {
+function Library({
+    lessons,
+    onReadMore,
+    user,
+    onLessonCreated,
+    librarySchemaReady,
+    librarySchemaWarning,
+}) {
     const [q, setQ] = useState("");
     const [query, setQuery] = useState("");
+    const [creating, setCreating] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [createError, setCreateError] = useState("");
+    const [createNotice, setCreateNotice] = useState("");
+    const [lessonDraft, setLessonDraft] = useState({
+        title: "",
+        icon: "📚",
+        tag: "",
+        desc: "",
+        timelineYear: "",
+        introduction: "",
+        lessonText: "",
+        sourcesText: "",
+    });
+    const canCreateLesson = ["teacher", "admin", "super_admin"].includes(
+        user?.role,
+    );
     const filtered = useMemo(
         () =>
             lessons.filter((x) =>
@@ -225,12 +250,225 @@ function Library({ lessons, onReadMore }) {
             ),
         [query, lessons],
     );
+
+    async function submitNewLesson(event) {
+        event.preventDefault();
+        setSaving(true);
+        setCreateError("");
+        setCreateNotice("");
+        try {
+            const sources = lessonDraft.sourcesText
+                .split("\n")
+                .map((line) => line.trim())
+                .filter(Boolean)
+                .map((line) => {
+                    const separator = line.indexOf("|");
+                    if (separator < 1) {
+                        throw new Error(
+                            "Mỗi nguồn cần nhập theo dạng: Tên nguồn | https://đường-dẫn",
+                        );
+                    }
+                    return {
+                        title: line.slice(0, separator).trim(),
+                        url: line.slice(separator + 1).trim(),
+                    };
+                });
+            const { lesson, timelineEntry } = await createLibraryLesson({
+                ...lessonDraft,
+                sources,
+            });
+            onLessonCreated(lesson, timelineEntry);
+            setLessonDraft({
+                title: "",
+                icon: "📚",
+                tag: "",
+                desc: "",
+                timelineYear: "",
+                introduction: "",
+                lessonText: "",
+                sourcesText: "",
+            });
+            setCreating(false);
+            setCreateNotice("Đã thêm bài vào thư viện và dòng thời gian.");
+        } catch (requestError) {
+            setCreateError(requestError.message);
+        } finally {
+            setSaving(false);
+        }
+    }
+
     return (
         <section className="view active">
             <Header
                 title="Thư viện lịch sử Toán học"
                 text="Tìm kiếm bài học, nhà toán học và chủ đề."
             />
+            {librarySchemaWarning && (
+                <p className="authNotice" role="status">
+                    {librarySchemaWarning}
+                </p>
+            )}
+            {canCreateLesson && librarySchemaReady && (
+                <section className="libraryContribution card">
+                    <div className="libraryContributionHeader">
+                        <div>
+                            <h3>Đóng góp học liệu</h3>
+                            <p className="muted">
+                                Tạo bài mới cho thư viện; mốc thời gian được thêm
+                                tự động từ năm, tiêu đề và giới thiệu.
+                            </p>
+                        </div>
+                        <button
+                            className="secondary"
+                            type="button"
+                            onClick={() => {
+                                setCreating((open) => !open);
+                                setCreateError("");
+                            }}
+                        >
+                            {creating ? "Đóng biểu mẫu" : "Thêm học liệu"}
+                        </button>
+                    </div>
+                    {createNotice && (
+                        <p className="assignmentScore" role="status">
+                            {createNotice}
+                        </p>
+                    )}
+                    {creating && (
+                        <form
+                            className="libraryLessonForm"
+                            onSubmit={submitNewLesson}
+                        >
+                            <div className="libraryFormGrid">
+                                <label>
+                                    Tiêu đề bài học
+                                    <input
+                                        maxLength={120}
+                                        required
+                                        value={lessonDraft.title}
+                                        onChange={(event) =>
+                                            setLessonDraft((draft) => ({
+                                                ...draft,
+                                                title: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </label>
+                                <label>
+                                    Chủ đề
+                                    <input
+                                        maxLength={40}
+                                        required
+                                        placeholder="Ví dụ: Đại số"
+                                        value={lessonDraft.tag}
+                                        onChange={(event) =>
+                                            setLessonDraft((draft) => ({
+                                                ...draft,
+                                                tag: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </label>
+                                <label>
+                                    Biểu tượng
+                                    <input
+                                        maxLength={8}
+                                        required
+                                        value={lessonDraft.icon}
+                                        onChange={(event) =>
+                                            setLessonDraft((draft) => ({
+                                                ...draft,
+                                                icon: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </label>
+                                <label>
+                                    Năm hoặc mốc lịch sử
+                                    <input
+                                        maxLength={40}
+                                        required
+                                        placeholder="Ví dụ: Thế kỷ IX"
+                                        value={lessonDraft.timelineYear}
+                                        onChange={(event) =>
+                                            setLessonDraft((draft) => ({
+                                                ...draft,
+                                                timelineYear: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </label>
+                            </div>
+                            <label>
+                                Giới thiệu ngắn
+                                <textarea
+                                    maxLength={500}
+                                    required
+                                    value={lessonDraft.desc}
+                                    onChange={(event) =>
+                                        setLessonDraft((draft) => ({
+                                            ...draft,
+                                            desc: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </label>
+                            <label>
+                                Mở đầu bài học
+                                <textarea
+                                    maxLength={3000}
+                                    required
+                                    value={lessonDraft.introduction}
+                                    onChange={(event) =>
+                                        setLessonDraft((draft) => ({
+                                            ...draft,
+                                            introduction: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </label>
+                            <label>
+                                Nội dung chi tiết
+                                <textarea
+                                    className="libraryLessonBody"
+                                    maxLength={12000}
+                                    required
+                                    value={lessonDraft.lessonText}
+                                    onChange={(event) =>
+                                        setLessonDraft((draft) => ({
+                                            ...draft,
+                                            lessonText: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </label>
+                            <label>
+                                Nguồn tham khảo (không bắt buộc, mỗi dòng một
+                                nguồn: Tên nguồn | URL)
+                                <textarea
+                                    maxLength={3000}
+                                    placeholder={"Wikipedia tiếng Việt | https://vi.wikipedia.org/\nMacTutor | https://mathshistory.st-andrews.ac.uk/"}
+                                    value={lessonDraft.sourcesText}
+                                    onChange={(event) =>
+                                        setLessonDraft((draft) => ({
+                                            ...draft,
+                                            sourcesText: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </label>
+                            {createError && (
+                                <p className="error" role="alert">
+                                    {createError}
+                                </p>
+                            )}
+                            <button className="primary" disabled={saving}>
+                                {saving ? "Đang lưu…" : "Đăng học liệu"}
+                            </button>
+                        </form>
+                    )}
+                </section>
+            )}
             <form
                 className="search"
                 onSubmit={(event) => {
@@ -283,26 +521,32 @@ function LessonDetail({ lesson, onBack }) {
                         <p>{section.text}</p>
                     </section>
                 ))}
-                <section className="sourcesSection" aria-labelledby="sources-title">
-                    <h2 id="sources-title">Nguồn tham khảo</h2>
-                    <ul className="sourceList">
-                        {lesson.sources.map((source) => (
-                            <li key={source.url}>
-                                <a
-                                    href={source.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    {source.title}
-                                    <span aria-hidden="true"> ↗</span>
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
-                    <p className="muted sourceNote">
-                        Mở nguồn trong tab mới để đọc thêm và đối chiếu thông tin.
-                    </p>
-                </section>
+                {lesson.sources?.length > 0 && (
+                    <section
+                        className="sourcesSection"
+                        aria-labelledby="sources-title"
+                    >
+                        <h2 id="sources-title">Nguồn tham khảo</h2>
+                        <ul className="sourceList">
+                            {lesson.sources.map((source) => (
+                                <li key={source.url}>
+                                    <a
+                                        href={source.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        {source.title}
+                                        <span aria-hidden="true"> ↗</span>
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                        <p className="muted sourceNote">
+                            Mở nguồn trong tab mới để đọc thêm và đối chiếu
+                            thông tin.
+                        </p>
+                    </section>
+                )}
             </article>
         </section>
     );
@@ -1150,6 +1394,17 @@ function App() {
         setView("library");
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
+    function addCreatedLesson(lesson, timelineEntry) {
+        setContent((current) =>
+            current
+                ? {
+                      ...current,
+                      lessons: [...current.lessons, lesson],
+                      timeline: [...current.timeline, timelineEntry],
+                  }
+                : current,
+        );
+    }
     const pages = {
         home: (
             <Home
@@ -1163,6 +1418,10 @@ function App() {
             <Library
                 lessons={content.lessons}
                 onReadMore={openLesson}
+                user={user}
+                onLessonCreated={addCreatedLesson}
+                librarySchemaReady={content.librarySchemaReady}
+                librarySchemaWarning={content.librarySchemaWarning}
             />
         ),
         timeline: <TimelineView timeline={content.timeline} />,
@@ -1201,7 +1460,14 @@ function App() {
         lesson: selectedLesson ? (
             <LessonDetail lesson={selectedLesson} onBack={returnToLibrary} />
         ) : (
-            <Library lessons={content.lessons} onReadMore={openLesson} />
+            <Library
+                lessons={content.lessons}
+                onReadMore={openLesson}
+                user={user}
+                onLessonCreated={addCreatedLesson}
+                librarySchemaReady={content.librarySchemaReady}
+                librarySchemaWarning={content.librarySchemaWarning}
+            />
         ),
     };
     const visibleNavItems =

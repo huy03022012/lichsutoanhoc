@@ -9,10 +9,13 @@ import accountHandler from "../../api/auth.js";
 import managedUsersHandler from "../../api/admin/users.js";
 import deletionRequestsHandler from "../../api/admin/deletion-requests.js";
 import assignmentsHandler from "../../api/assignments.js";
+import libraryHandler from "../../api/library.js";
 import assignmentSubmissionsHandler from "../../api/assignments/[assignmentId]/submissions.js";
 import {
+    getDatabase,
     requireAuthenticatedRequest,
 } from "./accountAuth.js";
+import { loadAdditionalLibraryContent } from "./libraryContent.js";
 import {
     existsSync,
     mkdirSync,
@@ -85,13 +88,25 @@ app.use("/api", async (req, res, next) => {
 app.use(express.static(distDirectory));
 
 // Trả nội dung dùng chung của website; không gửi đáp án quiz xuống frontend.
-app.get("/api/content", (_req, res) =>
-    res.json({
-        lessons,
-        timeline,
-        quiz: { question: quiz.question, options: quiz.options },
-    }),
-);
+app.get("/api/content", async (_req, res, next) => {
+    try {
+        const additionalContent = await loadAdditionalLibraryContent(
+            getDatabase(),
+        );
+        return res.json({
+            lessons: [...lessons, ...additionalContent.lessons],
+            timeline: [...timeline, ...additionalContent.timeline],
+            librarySchemaReady: additionalContent.schemaReady,
+            librarySchemaWarning: additionalContent.schemaWarning,
+            quiz: { question: quiz.question, options: quiz.options },
+        });
+    } catch (error) {
+        return next(error);
+    }
+});
+app.post("/api/library", async (req, res) => {
+    await libraryHandler(req, res);
+});
 
 // Đọc thống kê từ file tiến độ hiện tại trên máy chủ local.
 app.get("/api/progress", (_req, res) => {
@@ -156,6 +171,7 @@ app.all("/api/auth", accountHandler);
 app.all("/api/admin/users", managedUsersHandler);
 app.all("/api/admin/deletion-requests", deletionRequestsHandler);
 app.all("/api/assignments", assignmentsHandler);
+app.all("/api/library", libraryHandler);
 app.all(
     "/api/assignments/:assignmentId/submissions",
     assignmentSubmissionsHandler,

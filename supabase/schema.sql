@@ -120,6 +120,24 @@ alter table public.math_assignments
 create index if not exists math_assignments_created_at_idx
     on public.math_assignments (created_at desc);
 
+create table if not exists public.math_library_lessons (
+    id uuid primary key default gen_random_uuid(),
+    icon text not null check (char_length(icon) between 1 and 32),
+    tag text not null check (char_length(tag) between 1 and 40),
+    title text not null check (char_length(title) between 1 and 120),
+    description text not null check (char_length(description) between 1 and 500),
+    search_key text not null check (char_length(search_key) between 1 and 1000),
+    introduction text not null check (char_length(introduction) between 1 and 3000),
+    sections jsonb not null check (jsonb_typeof(sections) = 'array'),
+    sources jsonb not null default '[]'::jsonb check (jsonb_typeof(sources) = 'array'),
+    timeline_year text not null check (char_length(timeline_year) between 1 and 40),
+    created_by uuid references public.account_users (id) on delete set null,
+    created_at timestamptz not null default now()
+);
+
+create index if not exists math_library_lessons_created_at_idx
+    on public.math_library_lessons (created_at asc);
+
 create table if not exists public.math_submissions (
     id uuid primary key default gen_random_uuid(),
     assignment_id uuid not null references public.math_assignments (id) on delete cascade,
@@ -357,18 +375,21 @@ alter table public.account_users enable row level security;
 alter table public.account_sessions enable row level security;
 alter table public.math_assignments enable row level security;
 alter table public.math_submissions enable row level security;
+alter table public.math_library_lessons enable row level security;
 alter table public.account_deletion_requests enable row level security;
 
 revoke all on public.account_users from public, anon, authenticated;
 revoke all on public.account_sessions from public, anon, authenticated;
 revoke all on public.math_assignments from public, anon, authenticated;
 revoke all on public.math_submissions from public, anon, authenticated;
+revoke all on public.math_library_lessons from public, anon, authenticated;
 revoke all on public.account_deletion_requests from public, anon, authenticated;
 
 grant usage on schema public to service_role;
 grant select, insert, update, delete
     on public.account_users, public.account_sessions,
        public.math_assignments, public.math_submissions,
+       public.math_library_lessons,
        public.account_deletion_requests
     to service_role;
 revoke all on function public.delete_account_user(uuid) from public, anon, authenticated;
