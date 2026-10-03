@@ -17,6 +17,7 @@ import {
     verifyPassword,
 } from "../src/services/accountAuth.js";
 import { verifyTurnstileToken } from "../src/services/turnstileVerify.js";
+import { enforceLoginRateLimit } from "../src/services/loginRateLimit.js";
 
 const DUMMY_PASSWORD_HASH =
     "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -156,9 +157,25 @@ export default async function handler(req, res) {
         if (action === "login") {
             const username = normalizeLoginUsername(req.body?.username);
             const password = validatePassword(req.body?.password);
+            await enforceLoginRateLimit({
+                db,
+                req,
+                res,
+                type: "ip",
+                value: "",
+                maxAttempts: 40,
+            });
             await verifyTurnstileToken(req.body?.captchaToken, {
                 expectedHostname: getRequestHostname(req),
                 expectedAction: "login",
+            });
+            await enforceLoginRateLimit({
+                db,
+                req,
+                res,
+                type: "username",
+                value: username,
+                maxAttempts: 10,
             });
             const { data: user, error } = await db
                 .from("account_users")

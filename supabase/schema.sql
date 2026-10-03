@@ -93,6 +93,102 @@ create index if not exists account_sessions_user_id_idx
 create index if not exists account_sessions_expires_at_idx
     on public.account_sessions (expires_at);
 
+create table if not exists public.account_login_rate_limits (
+    bucket_key text primary key,
+    window_started_at timestamptz not null,
+    attempt_count integer not null check (attempt_count > 0),
+    updated_at timestamptz not null default now()
+);
+
+create index if not exists account_login_rate_limits_window_started_at_idx
+    on public.account_login_rate_limits (window_started_at);
+
+create or replace function public.consume_account_login_rate_limit(
+    p_bucket_keys text[],
+    p_limits integer[],
+    p_window_seconds integer
+)
+returns integer
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+    v_now timestamptz := clock_timestamp();
+    v_bucket_key text;
+    v_limit integer;
+    v_window_started_at timestamptz;
+    v_attempt_count integer;
+    v_retry_after integer := 0;
+begin
+    if coalesce(array_length(p_bucket_keys, 1), 0) = 0
+       or array_length(p_bucket_keys, 1) is distinct from array_length(p_limits, 1)
+       or p_window_seconds is null
+       or p_window_seconds < 1
+       or p_window_seconds > 86400
+       or exists (
+           select 1
+           from unnest(p_bucket_keys, p_limits) as input(bucket_key, attempt_limit)
+           where bucket_key is null
+              or char_length(bucket_key) > 128
+              or attempt_limit is null
+              or attempt_limit < 1
+       ) then
+        raise exception 'Invalid login rate limit input';
+    end if;
+
+    for v_bucket_key, v_limit in
+        select input.bucket_key, input.attempt_limit
+        from unnest(p_bucket_keys, p_limits) as input(bucket_key, attempt_limit)
+        order by input.bucket_key
+    loop
+        insert into public.account_login_rate_limits (
+            bucket_key, window_started_at, attempt_count, updated_at
+        )
+        values (v_bucket_key, v_now, 1, v_now)
+        on conflict (bucket_key) do update
+        set window_started_at = case
+                when public.account_login_rate_limits.window_started_at
+                     <= v_now - make_interval(secs => p_window_seconds)
+                    then v_now
+                else public.account_login_rate_limits.window_started_at
+            end,
+            attempt_count = case
+                when public.account_login_rate_limits.window_started_at
+                     <= v_now - make_interval(secs => p_window_seconds)
+                    then 1
+                else public.account_login_rate_limits.attempt_count + 1
+            end,
+            updated_at = v_now
+        returning window_started_at, attempt_count
+        into v_window_started_at, v_attempt_count;
+
+        if v_attempt_count > v_limit then
+            v_retry_after := greatest(
+                v_retry_after,
+                ceil(extract(epoch from (
+                    v_window_started_at
+                    + make_interval(secs => p_window_seconds)
+                    - v_now
+                )))::integer
+            );
+        end if;
+    end loop;
+
+    with expired as (
+        select bucket_key
+        from public.account_login_rate_limits
+        where window_started_at < v_now - interval '1 day'
+        order by window_started_at
+        limit 100
+    )
+    delete from public.account_login_rate_limits
+    where bucket_key in (select bucket_key from expired);
+
+    return v_retry_after;
+end;
+$$;
+
 create table if not exists public.math_assignments (
     id uuid primary key default gen_random_uuid(),
     title text not null check (char_length(title) between 1 and 120),
@@ -370,6 +466,7 @@ $$;
 -- API server dùng service_role; trình duyệt không được truy cập trực tiếp các bảng này.
 alter table public.account_users enable row level security;
 alter table public.account_sessions enable row level security;
+alter table public.account_login_rate_limits enable row level security;
 alter table public.math_assignments enable row level security;
 alter table public.math_submissions enable row level security;
 alter table public.math_library_lessons enable row level security;
@@ -377,6 +474,7 @@ alter table public.account_deletion_requests enable row level security;
 
 revoke all on public.account_users from public, anon, authenticated;
 revoke all on public.account_sessions from public, anon, authenticated;
+revoke all on public.account_login_rate_limits from public, anon, authenticated;
 revoke all on public.math_assignments from public, anon, authenticated;
 revoke all on public.math_submissions from public, anon, authenticated;
 revoke all on public.math_library_lessons from public, anon, authenticated;
@@ -395,9 +493,13 @@ revoke all on function public.update_account_users(uuid[], text, boolean)
     from public, anon, authenticated;
 revoke all on function public.resolve_account_deletion_request(uuid, uuid, boolean)
     from public, anon, authenticated;
+revoke all on function public.consume_account_login_rate_limit(text[], integer[], integer)
+    from public, anon, authenticated;
 grant execute on function public.delete_account_user(uuid) to service_role;
 grant execute on function public.delete_account_users(uuid[]) to service_role;
 grant execute on function public.update_account_users(uuid[], text, boolean)
     to service_role;
 grant execute on function public.resolve_account_deletion_request(uuid, uuid, boolean)
+    to service_role;
+grant execute on function public.consume_account_login_rate_limit(text[], integer[], integer)
     to service_role;
