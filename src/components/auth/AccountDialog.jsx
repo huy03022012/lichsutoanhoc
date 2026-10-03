@@ -171,9 +171,14 @@ export default function AccountDialog({
                             autoCapitalize="none"
                             spellCheck="false"
                             aria-invalid={Boolean(usernameError)}
-                            aria-describedby={
-                                usernameError ? "account-username-error" : undefined
-                            }
+                            aria-describedby={[
+                                mode === "register"
+                                    ? "account-username-hint"
+                                    : null,
+                                usernameError ? "account-username-error" : null,
+                            ]
+                                .filter(Boolean)
+                                .join(" ") || undefined}
                             onChange={(event) => {
                                 setUsername(event.target.value);
                                 setUsernameError("");
@@ -181,6 +186,16 @@ export default function AccountDialog({
                             }}
                             placeholder="Ví dụ: lehohoanghuy"
                         />
+                        {mode === "register" && (
+                            <span
+                                id="account-username-hint"
+                                className="accountFieldHint"
+                            >
+                                Lưu ý: Tên đăng nhập là chuỗi ký tự viết liền,
+                                không dấu, không khoảng trắng; chỉ dùng chữ cái
+                                a–z và số 0–9. Ví dụ: lehohoanghuy.
+                            </span>
+                        )}
                         {usernameError && (
                             <span
                                 id="account-username-error"
@@ -262,7 +277,7 @@ export default function AccountDialog({
                     )}
                     <p className="muted accountHint">
                         {mode === "register"
-                            ? "Tên đăng nhập viết liền, không dấu, dài 3–24 ký tự; chỉ dùng chữ cái a-z và số 0-9. Tên hiển thị có thể viết tiếng Việt. Đăng ký mới mặc định là học sinh."
+                            ? "Tên đăng nhập dài 3–24 ký tự. Tên hiển thị có thể viết tiếng Việt. Đăng ký mới mặc định là học sinh."
                             : "Nhập tên đăng nhập và mật khẩu của bạn."}
                     </p>
                     {error && (

@@ -299,6 +299,12 @@ nav button:hover {
     font-size: 13px;
     line-height: 1.5;
 }
+.accountFieldHint {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.45;
+}
 .accountSubmit {
     width: 100%;
 }
