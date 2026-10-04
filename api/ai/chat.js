@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { validateAiImage } from "../../src/services/aiImage.js";
-import { AI_SYSTEM_INSTRUCTION } from "../../src/services/aiPrompt.js";
+import { buildAiSystemInstruction } from "../../src/services/aiPrompt.js";
 import { requireAuthenticatedRequest } from "../../src/services/accountAuth.js";
 
 const model = "gemini-3.5-flash-lite";
@@ -65,7 +65,11 @@ export default async function handler(req, res) {
         const response = await ai.models.generateContent({
             model,
             contents: [{ role: "user", parts }],
-            config: { systemInstruction: AI_SYSTEM_INSTRUCTION },
+            config: {
+                systemInstruction: buildAiSystemInstruction(
+                    req.authenticatedDisplayName,
+                ),
+            },
         });
         if (!response.text) {
             return res

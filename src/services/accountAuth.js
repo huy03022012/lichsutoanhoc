@@ -262,7 +262,8 @@ export async function requireUser(db, req) {
 export async function requireAuthenticatedRequest(req, res, context) {
     try {
         const db = getDatabase();
-        await requireUser(db, req);
+        const user = await requireUser(db, req);
+        req.authenticatedDisplayName = user.display_name || user.username;
         return true;
     } catch (error) {
         sendApiError(res, error, context);

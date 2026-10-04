@@ -43,7 +43,16 @@ export function submitQuiz(selectedOption) {
 }
 
 export function getAccount() {
-    return request("/auth");
+    return request("/auth", { signal: AbortSignal.timeout(12000) }).catch(
+        (error) => {
+            if (error.name === "TimeoutError") {
+                throw new Error(
+                    "Máy chủ xác thực phản hồi quá lâu. Hãy kiểm tra kết nối và thử tải lại trang.",
+                );
+            }
+            throw error;
+        },
+    );
 }
 
 export function submitAccountAction(action, credentials = {}) {

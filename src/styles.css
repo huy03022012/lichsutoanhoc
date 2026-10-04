@@ -799,6 +799,63 @@ main {
     transform: translateY(-3px);
     box-shadow: var(--shadow);
 }
+.card.empty.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-height: 180px;
+    width: min(100%, 800px);
+    margin: 0;
+}
+main:has(.card.empty.loading) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    box-sizing: border-box;
+}
+.app:has(main):has(.card.empty.loading) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.card.empty.loading::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 40px;
+    margin: 10px auto;
+    border-radius: 50%;
+    background: conic-gradient(
+        from 0deg,
+        transparent 0deg,
+        transparent 40deg,
+        color-mix(in srgb, var(--primary) 5%, transparent) 50deg,
+        color-mix(in srgb, var(--primary) 25%, transparent) 180deg,
+        color-mix(in srgb, var(--primary) 65%, transparent) 270deg,
+        var(--primary) 360deg
+    );
+    -webkit-mask: radial-gradient(
+        farthest-side,
+        transparent calc(100% - 4px),
+        #000 calc(100% - 3px)
+    );
+    mask: radial-gradient(
+        farthest-side,
+        transparent calc(100% - 4px),
+        #000 calc(100% - 3px)
+    );
+    animation: loading-spin 0.8s linear infinite;
+}
+@keyframes loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 .icon {
     font-size: 28px;
 }
@@ -812,12 +869,20 @@ main {
     border-radius: 999px;
     margin-top: 12px;
 }
-.card h3 {
+article.card h3 {
     margin: 10px 0 7px;
 }
-.card p {
+article.card p {
     color: var(--muted);
-    line-height: 1.55;
+    line-height: 100%;
+}
+article.card:has(.cardReadMore) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.cardReadMore {
+    margin-top: auto;
 }
 /* Dòng thời gian ngang và trang chi tiết bài học/nguồn tham khảo. */
 .timeline {

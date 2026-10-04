@@ -29,10 +29,24 @@ const navItems = [
 const AI_CHAT_STORAGE_KEY = "mathhistory-ai-conversations-v1";
 // Đọc khóa cũ một lần để không làm mất lịch sử đã lưu trước khi hỗ trợ nhiều cuộc chat.
 const LEGACY_AI_CHAT_STORAGE_KEY = "mathhistory-ai-chat-v1";
+const AI_GREETING_TEXT =
+    "Xin chào! Bạn có thể hỏi về Lịch sử Toán học hoặc gửi bài tập. Mặc định mình chỉ gợi ý; nếu đã làm xong, bật “Chấm bài đã làm” để mình góp ý và đưa lời giải tham khảo.";
+const AI_GREETING_REMAINDER =
+    "! Bạn có thể hỏi về Lịch sử Toán học hoặc gửi bài tập. Mặc định mình chỉ gợi ý; nếu đã làm xong, bật “Chấm bài đã làm” để mình góp ý và đưa lời giải tham khảo.";
+
+function getAiGreeting(displayName = "") {
+    const safeName = displayName
+        .normalize("NFC")
+        .replace(/[^\p{L}\p{M}\p{N} '-]/gu, "")
+        .trim()
+        .slice(0, 60);
+    return `Xin chào${safeName ? `, ${safeName}` : ""}${AI_GREETING_REMAINDER}`;
+}
+
 const initialAiMessages = [
     {
         role: "bot",
-        text: "Xin chào! Bạn có thể hỏi về Lịch sử Toán học hoặc gửi bài tập. Mặc định mình chỉ gợi ý; nếu đã làm xong, bật “Chấm bài đã làm” để mình góp ý và đưa lời giải tham khảo.",
+        text: AI_GREETING_TEXT,
     },
 ];
 
@@ -126,7 +140,10 @@ function Card({ lesson, onReadMore }) {
             <span className="tag">{lesson.tag}</span>
             <h3>{lesson.title}</h3>
             <p>{lesson.desc}</p>
-            <button className="secondary" onClick={() => onReadMore(lesson)}>
+            <button
+                className="secondary cardReadMore"
+                onClick={() => onReadMore(lesson)}
+            >
                 Đọc thêm →
             </button>
         </article>
@@ -587,7 +604,7 @@ function TimelineView({ timeline }) {
     );
 }
 // Khu vực chat: quản lý 10 cuộc gần đây, trạng thái gửi và lưu trên trình duyệt.
-function AIView() {
+function AIView({ displayName }) {
     // State chat gồm danh sách cuộc, ID đang mở, nội dung nhập, trạng thái gửi và giao diện phóng to.
     const [chatState, setChatState] = useState(readSavedAiConversations);
     const [input, setInput] = useState("");
@@ -609,6 +626,35 @@ function AIView() {
             (conversation) => conversation.id === chatState.activeId,
         ) ?? chatState.conversations[0];
     const messages = activeConversation.messages;
+
+    useEffect(() => {
+        const personalizedGreeting = getAiGreeting(displayName);
+        if (personalizedGreeting === AI_GREETING_TEXT) return;
+
+        setChatState((current) => {
+            let changed = false;
+            const conversations = current.conversations.map((conversation) => {
+                const [firstMessage, ...remainingMessages] =
+                    conversation.messages;
+                if (
+                    firstMessage?.role !== "bot" ||
+                    !firstMessage.text.startsWith("Xin chào") ||
+                    !firstMessage.text.includes(AI_GREETING_REMAINDER)
+                ) {
+                    return conversation;
+                }
+                changed = true;
+                return {
+                    ...conversation,
+                    messages: [
+                        { ...firstMessage, text: personalizedGreeting },
+                        ...remainingMessages,
+                    ],
+                };
+            });
+            return changed ? { ...current, conversations } : current;
+        });
+    }, [displayName]);
 
     // Giữ khung chat ở cuối khi có tin nhắn mới, trạng thái chờ hoặc đổi cuộc trò chuyện.
     useEffect(() => {
@@ -720,7 +766,9 @@ function AIView() {
                 };
             }
 
-            const conversation = createConversation();
+            const conversation = createConversation([
+                { role: "bot", text: getAiGreeting(displayName) },
+            ]);
             return {
                 conversations: [conversation, ...current.conversations].slice(
                     0,
@@ -740,7 +788,9 @@ function AIView() {
         if (loading || !window.confirm("Bạn muốn xóa toàn bộ lịch sử trò chuyện?")) {
             return;
         }
-        const conversation = createConversation();
+        const conversation = createConversation([
+            { role: "bot", text: getAiGreeting(displayName) },
+        ]);
         setChatState({
             conversations: [conversation],
             activeId: conversation.id,
@@ -765,7 +815,13 @@ function AIView() {
                 (conversation) => conversation.id !== conversationId,
             );
             const remaining =
-                conversations.length > 0 ? conversations : [createConversation()];
+                conversations.length > 0
+                    ? conversations
+                    : [
+                          createConversation([
+                              { role: "bot", text: getAiGreeting(displayName) },
+                          ]),
+                      ];
             const activeId =
                 current.activeId === conversationId
                     ? remaining[0].id
@@ -1258,6 +1314,7 @@ function App() {
     const [authDialogOpen, setAuthDialogOpen] = useState(false);
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const [authNotice, setAuthNotice] = useState("");
+    // userDisplayName = `, ${user.displayName}`;
 
     // Chỉ tải học liệu sau khi đã xác thực tài khoản.
     useEffect(() => {
@@ -1326,7 +1383,7 @@ function App() {
         return (
             <div className="app">
                 <main>
-                    <div className="card empty">Đang kiểm tra đăng nhập…</div>
+                    <div className="card empty loading">Đang kiểm tra đăng nhập…</div>
                 </main>
             </div>
         );
@@ -1378,7 +1435,7 @@ function App() {
         return (
             <div className="app">
                 <main>
-                    <div className="card empty">Đang tải học liệu…</div>
+                    <div className="card empty loading">Đang tải học liệu…</div>
                 </main>
             </div>
         );
@@ -1425,7 +1482,7 @@ function App() {
             />
         ),
         timeline: <TimelineView timeline={content.timeline} />,
-        ai: <AIView />,
+        ai: <AIView displayName={user.displayName || user.username} />,
         assignments: user ? (
             <AssignmentsView user={user} />
         ) : (

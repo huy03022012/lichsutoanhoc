@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
 import { lessons, quiz, timeline } from "../data/content.js";
-import { AI_SYSTEM_INSTRUCTION } from "./aiPrompt.js";
+import { buildAiSystemInstruction } from "./aiPrompt.js";
 import { validateAiImage } from "./aiImage.js";
 import accountHandler from "../../api/auth.js";
 import managedUsersHandler from "../../api/admin/users.js";
@@ -230,7 +230,11 @@ app.post("/api/ai/chat", async (req, res) => {
             const response = await ai.models.generateContent({
                 model: "gemini-3.5-flash",
                 contents: [{ role: "user", parts }],
-                config: { systemInstruction: AI_SYSTEM_INSTRUCTION },
+                config: {
+                    systemInstruction: buildAiSystemInstruction(
+                        req.authenticatedDisplayName,
+                    ),
+                },
             });
             if (!response.text)
                 return res
