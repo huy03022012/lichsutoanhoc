@@ -1648,20 +1648,6 @@ function App() {
                         MathHistory <span>AI</span>
                     </div>
                 </div>
-                <button
-                    className="mobileMenuToggle"
-                    type="button"
-                    aria-label={isMobileMenuOpen ? "Đóng menu" : "Mở menu"}
-                    aria-expanded={isMobileMenuOpen}
-                    aria-controls="main-navigation"
-                    onClick={() =>
-                        setIsMobileMenuOpen((isOpen) => !isOpen)
-                    }
-                >
-                    <span />
-                    <span />
-                    <span />
-                </button>
                 <nav
                     id="main-navigation"
                     className={isMobileMenuOpen ? "mobileMenuOpen" : ""}
@@ -1683,33 +1669,6 @@ function App() {
                             {label}
                         </button>
                     ))}
-                    <div className="mobileAccountActions">
-                        {user ? (
-                            <AccountMenu
-                                user={user}
-                                mobile
-                                onEmail={() => {
-                                    setEmailDialogOpen(true);
-                                    setIsMobileMenuOpen(false);
-                                }}
-                                onPassword={() => {
-                                    setPasswordDialogOpen(true);
-                                    setIsMobileMenuOpen(false);
-                                }}
-                                onSignOut={() => {
-                                    setIsMobileMenuOpen(false);
-                                    signOut();
-                                }}
-                            />
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={() => setAuthDialogOpen(true)}
-                            >
-                                Đăng nhập / Đăng ký
-                            </button>
-                        )}
-                    </div>
                 </nav>
                 {isMobileMenuOpen && (
                     <button
@@ -1719,7 +1678,7 @@ function App() {
                         onClick={() => setIsMobileMenuOpen(false)}
                     />
                 )}
-                <div className="desktopAccountActions">
+                <div className="headerActions">
                     {authLoading ? (
                         <span className="muted">Đang tải tài khoản…</span>
                     ) : user ? (
@@ -1738,6 +1697,20 @@ function App() {
                             Đăng nhập / Đăng ký
                         </button>
                     )}
+                    <button
+                        className="mobileMenuToggle"
+                        type="button"
+                        aria-label={isMobileMenuOpen ? "Đóng menu" : "Mở menu"}
+                        aria-expanded={isMobileMenuOpen}
+                        aria-controls="main-navigation"
+                        onClick={() =>
+                            setIsMobileMenuOpen((isOpen) => !isOpen)
+                        }
+                    >
+                        <span />
+                        <span />
+                        <span />
+                    </button>
                 </div>
             </header>
             <main>

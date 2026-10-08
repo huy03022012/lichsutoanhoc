@@ -115,11 +115,12 @@ nav button:hover {
     border-radius: 12px;
     color: var(--text);
 }
-.desktopAccountActions {
+.headerActions {
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
+    flex: 0 0 auto;
 }
 .accountDropdown {
     position: relative;
@@ -197,9 +198,6 @@ nav button:hover {
     background: var(--surface);
     color: var(--text);
     font-weight: 700;
-}
-.mobileAccountActions {
-    display: none;
 }
 .authNotice {
     margin: 0 0 18px;
@@ -594,11 +592,17 @@ nav button:hover {
     background: var(--surface);
 }
 .managedUser summary {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 40%) 110px minmax(0, max-content);
     align-items: center;
-    gap: 10px;
+    gap: 10px 14px;
     padding: 14px;
     cursor: pointer;
+    list-style-position: inside;
+}
+.managedUserIdentity {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 button,
 input,
@@ -614,8 +618,26 @@ textarea:focus-visible {
     outline-offset: 2px;
     font-weight: 800;
 }
-.managedUser summary .tag {
-    margin: 0 auto 0 0;
+.managedUser summary .managedUserRole {
+    justify-self: start;
+    min-width: 96px;
+    margin: 0;
+    text-align: center;
+}
+.managedUserBadges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.managedUserBadges .tag {
+    margin: 0;
+}
+.managedUserAiUsage {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
 }
 .managedUserForm {
     padding: 0 14px 14px;
@@ -879,6 +901,17 @@ main {
 .section {
     margin-top: 58px;
 }
+.view > .sectionHead {
+    margin-bottom: 22px;
+}
+.view > .sectionHead h2 {
+    line-height: 1.2;
+}
+.view > .sectionHead .muted {
+    max-width: 70ch;
+    margin-top: 6px;
+    line-height: 1.6;
+}
 .sectionHead {
     display: flex;
     align-items: end;
@@ -901,6 +934,7 @@ main {
 }
 .card {
     min-width: 0;
+    height: 100%;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 18px;
@@ -1514,6 +1548,63 @@ hr {
     border-top: 1px solid var(--line);
     margin: 22px 0;
 }
+/* Thu gọn điều hướng trước khi các mục và điều khiển tài khoản bị chèn ép. */
+@media (min-width: 851px) and (max-width: 1100px) {
+    .mobileMenuToggle {
+        position: relative;
+        z-index: 12;
+        display: flex;
+        width: 44px;
+        height: 44px;
+        flex: 0 0 auto;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+    }
+    .mobileMenuToggle span {
+        display: block;
+        width: 19px;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--text);
+    }
+    .top nav {
+        display: none;
+    }
+    .top nav.mobileMenuOpen {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 4%;
+        z-index: 12;
+        display: flex;
+        width: min(300px, 92vw);
+        flex-direction: column;
+        gap: 5px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+    }
+    .top nav.mobileMenuOpen button {
+        width: 100%;
+        padding: 13px 14px;
+        text-align: left;
+    }
+    .mobileMenuBackdrop {
+        position: fixed;
+        inset: 72px 0 0;
+        z-index: 11;
+        display: block;
+        border: 0;
+        background: transparent;
+        cursor: default;
+    }
+}
 /* Điều chỉnh bố cục cho tablet và điện thoại. */
 @media (max-width: 850px) {
     .publicSearchTopics {
@@ -1610,36 +1701,36 @@ hr {
         padding: 13px 14px;
         text-align: left;
     }
-    .desktopAccountActions {
-        display: none;
-    }
-    .mobileAccountActions {
-        display: grid;
-        gap: 5px;
-        padding-top: 8px;
-        border-top: 1px solid var(--line);
-    }
-    .accountDropdown.mobile,
-    .accountDropdown.mobile .accountDropdownTrigger {
-        width: 100%;
-        max-width: none;
-    }
-    .accountDropdown.mobile .accountDropdownPanel {
-        position: static;
-        width: 100%;
-        margin-top: 5px;
-        padding: 0 0 0 12px;
-        border: 0;
-        border-radius: 0;
-        box-shadow: none;
-    }
-    .mobileAccountActions span {
-        padding: 8px 12px;
-        color: var(--muted);
-        font-size: 13px;
-    }
     .sectionHeader {
         align-items: flex-start;
+    }
+    .managedUser summary {
+        grid-template-columns: minmax(0, 40%) 100px;
+        gap: 8px;
+        padding: 12px;
+    }
+    .managedUserBadges {
+        grid-column: 1 / -1;
+    }
+    .top {
+        padding-right: 12px;
+        padding-left: 12px;
+    }
+    .headerActions {
+        gap: 6px;
+    }
+    .accountDropdownTrigger {
+        min-width: 0;
+        max-width: min(230px, 42vw);
+        padding: 9px 8px;
+    }
+    .accountIdentity {
+        max-width: 30vw;
+    }
+    .accountButton {
+        max-width: 42vw;
+        padding: 8px;
+        font-size: 12px;
     }
     .mobileMenuBackdrop {
         position: fixed;

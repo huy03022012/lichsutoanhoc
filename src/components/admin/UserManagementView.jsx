@@ -22,26 +22,11 @@ const roleLabels = {
 };
 const roles = Object.keys(roleLabels);
 
-function AiLimitControls({ userId }) {
-    const [usage, setUsage] = useState(null);
+function AiLimitControls({ userId, usage, onUsageChanged }) {
     const [amount, setAmount] = useState("10");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
-
-    useEffect(() => {
-        let active = true;
-        getManagedUserAiUsage(userId)
-            .then((result) => {
-                if (active) setUsage(result.usage);
-            })
-            .catch((loadError) => {
-                if (active) setError(loadError.message);
-            });
-        return () => {
-            active = false;
-        };
-    }, [userId]);
 
     async function apply(action) {
         setBusy(true);
@@ -53,7 +38,7 @@ function AiLimitControls({ userId }) {
                 action,
                 action === "add" ? Number(amount) : undefined,
             );
-            setUsage(result.usage);
+            onUsageChanged(result.usage);
             setMessage(
                 action === "reset"
                     ? "Đã đặt lại về 20 lượt mỗi 10 phút."
@@ -177,6 +162,9 @@ function ManagedUserRow({
     const [error, setError] = useState("");
     const [actionMessage, setActionMessage] = useState("");
     const [loading, setLoading] = useState(false);
+    const [aiUsage, setAiUsage] = useState(null);
+    const [aiUsageError, setAiUsageError] = useState("");
+    const [usageNow, setUsageNow] = useState(Date.now());
     const isSuperAdmin = currentUser.role === "super_admin";
     const isRootAdmin = user.is_root_admin;
     const isProtectedRoot = user.is_root_admin && !currentUser.is_root_admin;
@@ -184,6 +172,47 @@ function ManagedUserRow({
         (!isProtectedRoot && isSuperAdmin) ||
         (currentUser.role === "admin" &&
             ["student", "teacher"].includes(user.role));
+    const waitingForAiReset =
+        isSuperAdmin &&
+        aiUsage &&
+        !aiUsage.unlimited &&
+        aiUsage.remaining <= 0;
+
+    useEffect(() => {
+        if (!isSuperAdmin) return undefined;
+        let active = true;
+        getManagedUserAiUsage(user.id)
+            .then((result) => {
+                if (active) {
+                    setAiUsage(result.usage);
+                    setAiUsageError("");
+                }
+            })
+            .catch((loadError) => {
+                if (active) setAiUsageError(loadError.message);
+            });
+        return () => {
+            active = false;
+        };
+    }, [isSuperAdmin, user.id]);
+
+    useEffect(() => {
+        if (!waitingForAiReset) return undefined;
+        const interval = window.setInterval(() => {
+            const now = Date.now();
+            setUsageNow(now);
+            if (now >= Date.parse(aiUsage.resetAt)) {
+                window.clearInterval(interval);
+                getManagedUserAiUsage(user.id)
+                    .then((result) => {
+                        setAiUsage(result.usage);
+                        setAiUsageError("");
+                    })
+                    .catch((loadError) => setAiUsageError(loadError.message));
+            }
+        }, 1000);
+        return () => window.clearInterval(interval);
+    }, [aiUsage?.resetAt, isSuperAdmin, user.id, waitingForAiReset]);
 
     async function deleteUser() {
         if (
@@ -275,18 +304,52 @@ function ManagedUserRow({
     return (
         <details className="managedUser">
             <summary>
-                <span>
+                <span className="managedUserIdentity">
                     {user.displayName || user.username}{" "}
                     <span className="muted">@{user.username}</span>
                 </span>
-                <span className="tag">{roleLabels[user.role]}</span>
-                {user.is_root_admin && (
-                    <span className="tag">Super admin gốc</span>
-                )}
-                {user.is_locked && <span className="lockedTag">Đã khóa</span>}
-                {deletionRequest && (
-                    <span className="tag">Đang chờ duyệt xóa</span>
-                )}
+                <span className="tag managedUserRole">
+                    {roleLabels[user.role]}
+                </span>
+                <span className="managedUserBadges">
+                    {isSuperAdmin && (
+                        <span
+                            className="managedUserAiUsage"
+                            title={aiUsageError || undefined}
+                        >
+                            {aiUsage
+                                ? aiUsage.unlimited
+                                    ? "Không giới hạn AI"
+                                    : aiUsage.remaining > 0
+                                      ? `Còn ${aiUsage.remaining} lượt AI`
+                                      : (() => {
+                                            const seconds = Math.max(
+                                                0,
+                                                Math.ceil(
+                                                    (Date.parse(aiUsage.resetAt) -
+                                                        usageNow) /
+                                                        1000,
+                                                ),
+                                            );
+                                            return seconds > 0
+                                                ? `Dùng lại sau ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+                                                : "Đang làm mới lượt AI…";
+                                        })()
+                                : aiUsageError
+                                  ? "Lỗi tải lượt AI"
+                                  : "Đang tải lượt AI…"}
+                        </span>
+                    )}
+                    {user.is_root_admin && (
+                        <span className="tag">Super admin gốc</span>
+                    )}
+                    {user.is_locked && (
+                        <span className="lockedTag">Đã khóa</span>
+                    )}
+                    {deletionRequest && (
+                        <span className="tag">Đang chờ duyệt xóa</span>
+                    )}
+                </span>
             </summary>
             <form className="managedUserForm" onSubmit={save}>
                 {isProtectedRoot ? (
@@ -380,7 +443,13 @@ function ManagedUserRow({
                         )}
                     </>
                 )}
-                {isSuperAdmin && <AiLimitControls userId={user.id} />}
+                {isSuperAdmin && (
+                    <AiLimitControls
+                        userId={user.id}
+                        usage={aiUsage}
+                        onUsageChanged={setAiUsage}
+                    />
+                )}
                 {isSuperAdmin && (
                     <button
                         className="secondary"
