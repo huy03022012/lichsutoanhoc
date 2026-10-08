@@ -958,6 +958,7 @@ main {
     min-height: 180px;
     width: min(100%, 800px);
     margin: 0;
+    border-width: 2px;
 }
 main:has(.card.empty.loading) {
     display: flex;
