@@ -297,7 +297,6 @@ export default function AssignmentsView({ user }) {
     const [deletingId, setDeletingId] = useState("");
     const canCreate = STAFF_ROLES.includes(user?.role);
     const canReview = user && STAFF_ROLES.includes(user.role);
-
     async function loadAssignments() {
         setLoading(true);
         setError("");
@@ -417,7 +416,7 @@ export default function AssignmentsView({ user }) {
                     </p>
                 </div>
                 <button
-                    className="secondary"
+                    className="primary"
                     type="button"
                     onClick={loadAssignments}
                     disabled={loading}

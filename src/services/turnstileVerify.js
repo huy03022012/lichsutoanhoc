@@ -12,7 +12,7 @@ export async function verifyTurnstileToken(
     if (!secretKey) {
         throw new HttpError(
             503,
-            "Chưa cấu hình TURNSTILE_SECRET_KEY ở backend nên chưa thể đăng ký.",
+            "Chưa cấu hình TURNSTILE_SECRET_KEY ở backend nên chưa thể xác thực tài khoản.",
         );
     }
     if (typeof token !== "string" || !token.trim() || token.length > 2048) {

@@ -82,6 +82,20 @@ export function validateDisplayName(value) {
     return displayName;
 }
 
+export function validateEmail(value) {
+    if (typeof value !== "string") {
+        throw new HttpError(400, "Vui lòng nhập địa chỉ email.");
+    }
+    const email = value.normalize("NFC").trim().toLowerCase();
+    if (
+        email.length > 254 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email)
+    ) {
+        throw new HttpError(400, "Địa chỉ email không hợp lệ.");
+    }
+    return email;
+}
+
 export function validatePassword(value) {
     if (typeof value !== "string" || value.length < 8 || value.length > 128) {
         throw new HttpError(400, "Mật khẩu phải có từ 8 đến 128 ký tự.");
@@ -236,7 +250,7 @@ export async function getSessionUser(db, req) {
     const { data: user, error: userError } = await db
         .from("account_users")
         .select(
-            "id, username, display_name, role, is_locked, is_root_admin, created_at",
+            "id, username, display_name, email, email_verified_at, role, is_locked, is_root_admin, created_at",
         )
         .eq("id", session.user_id)
         .maybeSingle();
@@ -263,6 +277,7 @@ export async function requireAuthenticatedRequest(req, res, context) {
     try {
         const db = getDatabase();
         const user = await requireUser(db, req);
+        req.authenticatedUserId = user.id;
         req.authenticatedDisplayName = user.display_name || user.username;
         return true;
     } catch (error) {
@@ -282,6 +297,8 @@ export function publicUser(user) {
         id: user.id,
         username: user.username,
         displayName: user.display_name || user.username,
+        email: user.email ?? null,
+        emailVerified: Boolean(user.email_verified_at),
         role: user.role,
         is_locked: user.is_locked,
         is_root_admin: user.is_root_admin === true,

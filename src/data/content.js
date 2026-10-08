@@ -242,6 +242,44 @@ export const lessons = [
             },
         ],
     },
+    {
+        id: "pi",
+        icon: "ℹ️",
+        tag: "Hằng số",
+        title: "Sự ra đời của số π",
+        desc: "Khám phá hành trình con người tìm hiểu và tính toán số π từ thời cổ đại đến ngày nay.",
+        key: "su ra doi so pi lich su pi",
+        introduction:
+            "Từ thời cổ đại, con người đã nhận thấy một mối liên hệ đặc biệt giữa chu vi và đường kính của mọi đường tròn. Qua nhiều thế kỷ, các nhà toán học đã tìm cách tính giá trị của tỉ số này ngày càng chính xác, từ đó hình thành hiểu biết về số π.",
+        sections: [
+            {
+                heading: "Những giá trị gần đúng đầu tiên",
+                text: "Từ thời cổ đại, người Babylon và người Ai Cập đã sử dụng những giá trị gần đúng của π trong các bài toán liên quan đến đường tròn. Những cách tính này chưa dựa trên khái niệm π như ngày nay nhưng cho thấy con người đã sớm nhận ra mối quan hệ giữa chu vi và đường kính.",
+            },
+            {
+                heading: "Archimedes và cách tính π",
+                text: "Vào thế kỷ III TCN, nhà toán học Hy Lạp Archimedes đã tìm cách xác định π bằng hình học. Ông sử dụng các đa giác đều nội tiếp và ngoại tiếp đường tròn để tạo ra giới hạn trên và giới hạn dưới cho giá trị của π. Phương pháp này giúp tính π chính xác hơn nhiều so với những giá trị gần đúng trước đó.",
+            },
+            {
+                heading: "Sự xuất hiện của ký hiệu π",
+                text: "Ký hiệu π bắt nguồn từ chữ cái Hy Lạp pi. Ký hiệu này được sử dụng trong các công trình toán học từ thế kỷ XVII và dần trở nên phổ biến để biểu thị tỉ số giữa chu vi và đường kính của đường tròn.",
+            },
+            {
+                heading: "π trong Toán học hiện đại",
+                text: "Ngày nay, π được xác định là tỉ số giữa chu vi và đường kính của một đường tròn. Giá trị của π xấp xỉ 3,14159 và π là một số vô tỉ, nghĩa là phần thập phân của nó kéo dài vô hạn và không lặp lại theo một chu kỳ cố định. π xuất hiện trong nhiều công thức của hình học, lượng giác, giải tích và nhiều lĩnh vực khác của Toán học.",
+            },
+        ],
+        sources: [
+            {
+                title: "Pi — Wikipedia tiếng Việt",
+                url: "https://vi.wikipedia.org/wiki/Pi",
+            },
+            {
+                title: "Pi — Encyclopaedia Britannica",
+                url: "https://www.britannica.com/science/pi-mathematics",
+            },
+        ],
+    },
 ];
 
 // Mỗi mốc gồm năm, tên sự kiện và lời giới thiệu ngắn.

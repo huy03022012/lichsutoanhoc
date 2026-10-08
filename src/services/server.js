@@ -16,6 +16,7 @@ import {
     requireAuthenticatedRequest,
 } from "./accountAuth.js";
 import { loadAdditionalLibraryContent } from "./libraryContent.js";
+import { consumeAiUsage, getAiUsage } from "./aiUsage.js";
 import {
     existsSync,
     mkdirSync,
@@ -106,6 +107,15 @@ app.get("/api/content", async (_req, res, next) => {
 });
 app.post("/api/library", async (req, res) => {
     await libraryHandler(req, res);
+});
+app.get("/api/ai/chat", async (req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    try {
+        const usage = await getAiUsage(getDatabase(), req.authenticatedUserId);
+        return res.json({ usage });
+    } catch (error) {
+        return next(error);
+    }
 });
 
 // Đọc thống kê từ file tiến độ hiện tại trên máy chủ local.
@@ -205,6 +215,25 @@ app.post("/api/ai/chat", async (req, res) => {
                 .status(503)
                 .json({ error: "AI chưa được cấu hình ở backend." });
 
+        let usage;
+        try {
+            usage = await consumeAiUsage(
+                getDatabase(),
+                req.authenticatedUserId,
+            );
+        } catch (error) {
+            console.error("Không thể kiểm tra hạn mức sử dụng AI:", error);
+            return res.status(503).json({
+                error: "Không thể kiểm tra hạn mức AI. Hãy thử lại.",
+            });
+        }
+        if (!usage.allowed) {
+            return res.status(429).json({
+                error: "Bạn đã dùng hết lượt AI trong khung 10 phút. Hãy chờ hạn mức được làm mới hoặc liên hệ super admin.",
+                usage,
+            });
+        }
+
         try {
             const parts = [];
             // Cờ riêng giúp phân biệt yêu cầu chấm bài với chế độ gợi ý mặc định.
@@ -240,7 +269,7 @@ app.post("/api/ai/chat", async (req, res) => {
                 return res
                     .status(502)
                     .json({ error: "Dịch vụ AI không trả về nội dung." });
-            return res.json({ success: true, answer: response.text });
+            return res.json({ success: true, answer: response.text, usage });
         } catch (error) {
             console.error("Lỗi gọi Gemini:", error);
             return res

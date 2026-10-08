@@ -1,19 +1,37 @@
 import { GoogleGenAI } from "@google/genai";
 import { validateAiImage } from "../../src/services/aiImage.js";
 import { buildAiSystemInstruction } from "../../src/services/aiPrompt.js";
-import { requireAuthenticatedRequest } from "../../src/services/accountAuth.js";
+import {
+    getDatabase,
+    requireAuthenticatedRequest,
+} from "../../src/services/accountAuth.js";
+import { consumeAiUsage, getAiUsage } from "../../src/services/aiUsage.js";
 
 const model = "gemini-3.5-flash-lite";
 
-// Serverless endpoint cho POST /api/ai/chat; GEMINI_API_KEY chỉ đọc ở server.
+// Serverless endpoint cho /api/ai/chat; GEMINI_API_KEY chỉ đọc ở server.
 export default async function handler(req, res) {
-    if (req.method !== "POST") {
-        res.setHeader("Allow", "POST");
+    res.setHeader("Cache-Control", "no-store");
+    if (!["GET", "POST"].includes(req.method)) {
+        res.setHeader("Allow", "GET, POST");
         return res.status(405).json({ error: "Phương thức không được hỗ trợ." });
     }
 
     if (!(await requireAuthenticatedRequest(req, res, "Lỗi xác thực AI:"))) {
         return;
+    }
+
+    const db = getDatabase();
+    if (req.method === "GET") {
+        try {
+            const usage = await getAiUsage(db, req.authenticatedUserId);
+            return res.status(200).json({ usage });
+        } catch (error) {
+            console.error("Không thể đọc hạn mức sử dụng AI:", error);
+            return res.status(503).json({
+                error: "Không thể tải số lượt AI hiện tại. Hãy thử lại.",
+            });
+        }
     }
 
     const message =
@@ -36,6 +54,22 @@ export default async function handler(req, res) {
         return res
             .status(503)
             .json({ error: "Chưa cấu hình GEMINI_API_KEY trên Vercel." });
+    }
+
+    let usage;
+    try {
+        usage = await consumeAiUsage(db, req.authenticatedUserId);
+    } catch (error) {
+        console.error("Không thể kiểm tra hạn mức sử dụng AI:", error);
+        return res.status(503).json({
+            error: "Không thể kiểm tra hạn mức AI. Hãy thử lại.",
+        });
+    }
+    if (!usage.allowed) {
+        return res.status(429).json({
+            error: "Bạn đã dùng hết lượt AI trong khung 10 phút. Hãy chờ hạn mức được làm mới hoặc liên hệ super admin.",
+            usage,
+        });
     }
 
     try {
@@ -76,7 +110,9 @@ export default async function handler(req, res) {
                 .status(502)
                 .json({ error: "Dịch vụ AI không trả về nội dung." });
         }
-        return res.status(200).json({ success: true, answer: response.text });
+        return res
+            .status(200)
+            .json({ success: true, answer: response.text, usage });
     } catch (error) {
         console.error("Lỗi gọi Gemini trên Vercel:", error);
         return res.status(502).json({

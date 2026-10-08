@@ -8,10 +8,12 @@ import {
     chatWithAI,
     createLibraryLesson,
     getAccount,
+    getAiUsage,
     getContent,
     submitAccountAction,
 } from "./services/api.js";
 import AccountDialog from "./components/auth/AccountDialog.jsx";
+import EmailVerificationDialog from "./components/auth/EmailVerificationDialog.jsx";
 import PasswordChangeDialog from "./components/auth/PasswordChangeDialog.jsx";
 import UserManagementView from "./components/admin/UserManagementView.jsx";
 import AssignmentsView from "./components/assignments/AssignmentsView.jsx";
@@ -24,7 +26,6 @@ const navItems = [
     ["ai", "AI trợ giảng"],
     ["assignments", "Bài tập"],
 ];
-
 // localStorage giữ 10 cuộc chat trên trình duyệt kể cả sau khi đóng website.
 const AI_CHAT_STORAGE_KEY = "mathhistory-ai-conversations-v1";
 // Đọc khóa cũ một lần để không làm mất lịch sử đã lưu trước khi hỗ trợ nhiều cuộc chat.
@@ -33,6 +34,70 @@ const AI_GREETING_TEXT =
     "Xin chào! Bạn có thể hỏi về Lịch sử Toán học hoặc gửi bài tập. Mặc định mình chỉ gợi ý; nếu đã làm xong, bật “Chấm bài đã làm” để mình góp ý và đưa lời giải tham khảo.";
 const AI_GREETING_REMAINDER =
     "! Bạn có thể hỏi về Lịch sử Toán học hoặc gửi bài tập. Mặc định mình chỉ gợi ý; nếu đã làm xong, bật “Chấm bài đã làm” để mình góp ý và đưa lời giải tham khảo.";
+const ACCOUNT_ROLE_LABELS = {
+    student: "Học sinh",
+    teacher: "Giáo viên",
+    admin: "Admin",
+    super_admin: "Super admin",
+};
+
+function AccountMenu({ user, onEmail, onPassword, onSignOut, mobile = false }) {
+    return (
+        <details
+            className={`accountDropdown${mobile ? " mobile" : ""}`}
+            onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                    event.currentTarget.open = false;
+                }
+            }}
+            onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                    event.currentTarget.open = false;
+                    event.currentTarget.querySelector("summary")?.focus();
+                }
+            }}
+        >
+            <summary className="accountDropdownTrigger">
+                <span className="accountIdentity">
+                    {user.displayName || user.username} ·{" "}
+                    {ACCOUNT_ROLE_LABELS[user.role]}
+                </span>
+                <span className="accountDropdownChevron" aria-hidden="true">
+                    ▾
+                </span>
+            </summary>
+            <div className="accountDropdownPanel">
+                <button
+                    type="button"
+                    onClick={(event) => {
+                        event.currentTarget.closest("details").open = false;
+                        onEmail();
+                    }}
+                >
+                    {user.emailVerified ? "Cập nhật email" : "Xác thực email"}
+                </button>
+                <button
+                    type="button"
+                    onClick={(event) => {
+                        event.currentTarget.closest("details").open = false;
+                        onPassword();
+                    }}
+                >
+                    Đổi mật khẩu
+                </button>
+                <button
+                    type="button"
+                    onClick={(event) => {
+                        event.currentTarget.closest("details").open = false;
+                        onSignOut();
+                    }}
+                >
+                    Đăng xuất
+                </button>
+            </div>
+        </details>
+    );
+}
 
 function getAiGreeting(displayName = "") {
     const safeName = displayName
@@ -221,6 +286,7 @@ function Home({ setView, lessons, timeline, onReadMore }) {
         </section>
     );
 }
+
 // Hiển thị một con số tổng hợp ở thẻ giới thiệu trang chủ.
 function Stat({ value, label }) {
     return (
@@ -336,7 +402,7 @@ function Library({
                             </p>
                         </div>
                         <button
-                            className="secondary"
+                            className="primary"
                             type="button"
                             onClick={() => {
                                 setCreating((open) => !open);
@@ -617,6 +683,8 @@ function AIView({ displayName }) {
     const [cameraFacingMode, setCameraFacingMode] = useState("environment");
     const [isCameraLoading, setIsCameraLoading] = useState(false);
     const [cameraError, setCameraError] = useState("");
+    const [aiUsage, setAiUsage] = useState(null);
+    const [aiUsageError, setAiUsageError] = useState("");
     const imageInputRef = useRef(null);
     const messagesContainerRef = useRef(null);
     const cameraVideoRef = useRef(null);
@@ -626,6 +694,22 @@ function AIView({ displayName }) {
             (conversation) => conversation.id === chatState.activeId,
         ) ?? chatState.conversations[0];
     const messages = activeConversation.messages;
+
+    async function refreshAiUsage() {
+        try {
+            const result = await getAiUsage();
+            setAiUsage(result.usage);
+            setAiUsageError("");
+        } catch (usageError) {
+            setAiUsageError(usageError.message);
+        }
+    }
+
+    useEffect(() => {
+        refreshAiUsage();
+        const interval = window.setInterval(refreshAiUsage, 15000);
+        return () => window.clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         const personalizedGreeting = getAiGreeting(displayName);
@@ -939,7 +1023,13 @@ function AIView({ displayName }) {
     // Gửi văn bản và/hoặc ảnh lên backend; lịch sử lưu tên ảnh, không lưu dữ liệu ảnh.
     async function ask() {
         const v = input.trim();
-        if ((!v && !selectedImage) || loading) return;
+        if (
+            (!v && !selectedImage) ||
+            loading ||
+            (aiUsage && !aiUsage.unlimited && aiUsage.remaining <= 0)
+        ) {
+            return;
+        }
         setError("");
         const messageId = `${Date.now()}-${Math.random()}`;
         const conversationId = activeConversation.id;
@@ -976,6 +1066,7 @@ function AIView({ displayName }) {
             );
             if (!data.answer)
                 throw new Error("Dịch vụ AI không trả về nội dung.");
+            if (data.usage) setAiUsage(data.usage);
             setInput("");
             setSelectedImage(null);
             updateConversation(conversationId, (current) => [
@@ -991,6 +1082,7 @@ function AIView({ displayName }) {
                 current.filter((message) => message.id !== messageId),
             );
             setError(err.message || "Không thể nhận phản hồi từ AI.");
+            refreshAiUsage();
         } finally {
             setLoading(false);
         }
@@ -1095,7 +1187,16 @@ function AIView({ displayName }) {
                 </aside>
                 <div className={`chat${isExpanded ? " chatExpanded" : ""}`}>
                     <div className="chatHeader">
-                        <span className="muted">Trò chuyện với AI</span>
+                        <div>
+                            <span className="muted">Trò chuyện với AI</span>
+                            <p className="aiUsageIndicator" role="status">
+                                {aiUsage
+                                    ? aiUsage.unlimited
+                                        ? "Lượt AI: không giới hạn"
+                                        : `Còn ${aiUsage.remaining} lượt AI · Làm mới lúc ${new Date(aiUsage.resetAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+                                    : aiUsageError || "Đang tải hạn mức AI…"}
+                            </p>
+                        </div>
                         <button
                             className="secondary expandChat"
                             type="button"
@@ -1206,7 +1307,13 @@ function AIView({ displayName }) {
                         <button
                             className="primary"
                             onClick={ask}
-                            disabled={loading || (!input.trim() && !selectedImage)}
+                            disabled={
+                                loading ||
+                                (!input.trim() && !selectedImage) ||
+                                (aiUsage &&
+                                    !aiUsage.unlimited &&
+                                    aiUsage.remaining <= 0)
+                            }
                         >
                             {loading ? "Đang gửi…" : "Gửi"}
                         </button>
@@ -1312,6 +1419,7 @@ function App() {
     const [user, setUser] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
     const [authDialogOpen, setAuthDialogOpen] = useState(false);
+    const [emailDialogOpen, setEmailDialogOpen] = useState(false);
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const [authNotice, setAuthNotice] = useState("");
     // userDisplayName = `, ${user.displayName}`;
@@ -1392,7 +1500,7 @@ function App() {
             <div className="app">
                 <header className="top">
                     <div className="brand">
-                        <div className="logo">∑</div>
+                        <div className="logo"></div>
                         <div>
                             MathHistory <span>AI</span>
                         </div>
@@ -1410,7 +1518,6 @@ function App() {
                             setUser(signedInUser);
                             setAuthDialogOpen(false);
                             setAuthNotice("");
-                            setView("home");
                         }}
                     />
                     <PublicSearchIntro />
@@ -1531,19 +1638,12 @@ function App() {
         user && ["admin", "super_admin"].includes(user.role)
             ? [...navItems, ["users", "Quản lý tài khoản"]]
             : navItems;
-    const roleLabels = {
-        student: "Học sinh",
-        teacher: "Giáo viên",
-        admin: "Admin",
-        super_admin: "Super admin",
-    };
-
     // Điều hướng phía client: đổi nội dung trang mà không tải lại toàn bộ website.
     return (
         <div className="app">
             <header className="top">
                 <div className="brand">
-                    <div className="logo">∑</div>
+                    <div className="logo"></div>
                     <div>
                         MathHistory <span>AI</span>
                     </div>
@@ -1585,24 +1685,22 @@ function App() {
                     ))}
                     <div className="mobileAccountActions">
                         {user ? (
-                            <>
-                                <span>
-                                    {user.displayName || user.username} ·{" "}
-                                    {roleLabels[user.role]}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setPasswordDialogOpen(true);
-                                        setIsMobileMenuOpen(false);
-                                    }}
-                                >
-                                    Đổi mật khẩu
-                                </button>
-                                <button type="button" onClick={signOut}>
-                                    Đăng xuất
-                                </button>
-                            </>
+                            <AccountMenu
+                                user={user}
+                                mobile
+                                onEmail={() => {
+                                    setEmailDialogOpen(true);
+                                    setIsMobileMenuOpen(false);
+                                }}
+                                onPassword={() => {
+                                    setPasswordDialogOpen(true);
+                                    setIsMobileMenuOpen(false);
+                                }}
+                                onSignOut={() => {
+                                    setIsMobileMenuOpen(false);
+                                    signOut();
+                                }}
+                            />
                         ) : (
                             <button
                                 type="button"
@@ -1625,26 +1723,12 @@ function App() {
                     {authLoading ? (
                         <span className="muted">Đang tải tài khoản…</span>
                     ) : user ? (
-                        <>
-                            <span className="accountIdentity">
-                                {user.displayName || user.username} ·{" "}
-                                {roleLabels[user.role]}
-                            </span>
-                            <button
-                                className="secondary"
-                                type="button"
-                                onClick={() => setPasswordDialogOpen(true)}
-                            >
-                                Đổi mật khẩu
-                            </button>
-                            <button
-                                className="secondary"
-                                type="button"
-                                onClick={signOut}
-                            >
-                                Đăng xuất
-                            </button>
-                        </>
+                        <AccountMenu
+                            user={user}
+                            onEmail={() => setEmailDialogOpen(true)}
+                            onPassword={() => setPasswordDialogOpen(true)}
+                            onSignOut={signOut}
+                        />
                     ) : (
                         <button
                             className="accountButton"
@@ -1672,6 +1756,17 @@ function App() {
                         setAuthDialogOpen(false);
                         setAuthNotice("");
                         setView("home");
+                    }}
+                />
+            )}
+            {emailDialogOpen && (
+                <EmailVerificationDialog
+                    user={user}
+                    onClose={() => setEmailDialogOpen(false)}
+                    onVerified={(verifiedUser) => {
+                        setUser(verifiedUser);
+                        setEmailDialogOpen(false);
+                        setAuthNotice("Email đã được xác thực và liên kết.");
                     }}
                 />
             )}

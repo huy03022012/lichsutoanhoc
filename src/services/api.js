@@ -109,6 +109,28 @@ export function updateManagedUsers(userIds, changes) {
     });
 }
 
+export function manageManagedUserAiLimit(userId, aiLimitAction, amount) {
+    return request("/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, aiLimitAction, amount }),
+    });
+}
+
+export function getManagedUserAiUsage(userId) {
+    return request(
+        `/admin/users?aiUsageFor=${encodeURIComponent(userId)}`,
+    );
+}
+
+export function resetManagedUserLoginAttempts(userId) {
+    return request("/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, resetLoginAttempts: true }),
+    });
+}
+
 export function getAccountDeletionRequests() {
     return request("/admin/deletion-requests");
 }
@@ -211,4 +233,8 @@ export async function chatWithAI(message, image = null, checkWork = false) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message, image, checkWork }),
     });
+}
+
+export function getAiUsage() {
+    return request("/ai/chat");
 }

@@ -17,6 +17,7 @@
         "dotenv": "^17.2.2",
         "express": "^5.1.0",
         "katex": "^0.18.10",
+        "nodemailer": "^10.0.16",
         "react": "latest",
         "react-dom": "latest",
         "react-markdown": "^10.1.0",

@@ -13,8 +13,20 @@ import {
     validatePassword,
     validateUsername,
 } from "../../src/services/accountAuth.js";
+import { getAiUsage, manageAiUsage } from "../../src/services/aiUsage.js";
+import { resetLoginFailures } from "../../src/services/loginRateLimit.js";
 
 const ROLES = new Set(["student", "teacher", "admin", "super_admin"]);
+
+async function requireAiUsageTarget(db, userId) {
+    const { data, error } = await db
+        .from("account_users")
+        .select("id")
+        .eq("id", userId)
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new HttpError(404, "Không tìm thấy tài khoản.");
+}
 
 export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
@@ -24,6 +36,22 @@ export default async function handler(req, res) {
         requireRole(currentUser, ["admin", "super_admin"]);
 
         if (req.method === "GET") {
+            const aiUsageUserId = req.query?.aiUsageFor;
+            if (aiUsageUserId !== undefined) {
+                if (
+                    currentUser.role !== "super_admin" ||
+                    typeof aiUsageUserId !== "string" ||
+                    !/^[0-9a-f-]{36}$/i.test(aiUsageUserId)
+                ) {
+                    throw new HttpError(
+                        403,
+                        "Không có quyền xem hạn mức AI của tài khoản này.",
+                    );
+                }
+                await requireAiUsageTarget(db, aiUsageUserId);
+                const usage = await getAiUsage(db, aiUsageUserId);
+                return res.status(200).json({ usage });
+            }
             let query = db
                 .from("account_users")
                 .select(
@@ -79,6 +107,70 @@ export default async function handler(req, res) {
             return res.status(405).json({ error: "Phương thức không được hỗ trợ." });
         }
         ensureSameOrigin(req);
+        if (req.body?.resetLoginAttempts === true) {
+            if (currentUser.role !== "super_admin") {
+                throw new HttpError(
+                    403,
+                    "Chỉ super admin được đặt lại lượt đăng nhập.",
+                );
+            }
+            const userId = req.body?.userId;
+            if (
+                typeof userId !== "string" ||
+                !/^[0-9a-f-]{36}$/i.test(userId)
+            ) {
+                throw new HttpError(400, "Tài khoản được chọn không hợp lệ.");
+            }
+            const { data: target, error } = await db
+                .from("account_users")
+                .select("username")
+                .eq("id", userId)
+                .maybeSingle();
+            if (error) throw error;
+            if (!target) throw new HttpError(404, "Không tìm thấy tài khoản.");
+            await resetLoginFailures({ db, username: target.username });
+            return res.status(200).json({
+                success: true,
+                message: "Đã đặt lại lượt đăng nhập sai và gỡ thời gian chờ.",
+            });
+        }
+        if (req.body?.aiLimitAction !== undefined) {
+            if (currentUser.role !== "super_admin") {
+                throw new HttpError(
+                    403,
+                    "Chỉ super admin được quản lý hạn mức AI.",
+                );
+            }
+            const userId = req.body?.userId;
+            const action = req.body?.aiLimitAction;
+            const amount = req.body?.amount;
+            if (
+                typeof userId !== "string" ||
+                !/^[0-9a-f-]{36}$/i.test(userId)
+            ) {
+                throw new HttpError(400, "Tài khoản được chọn không hợp lệ.");
+            }
+            if (!["unlimited", "limited", "reset", "add"].includes(action)) {
+                throw new HttpError(400, "Thao tác hạn mức AI không hợp lệ.");
+            }
+            if (
+                action === "add" &&
+                (!Number.isInteger(amount) || amount < 1 || amount > 1_000_000)
+            ) {
+                throw new HttpError(
+                    400,
+                    "Số lượt cấp thêm phải từ 1 đến 1.000.000.",
+                );
+            }
+            await requireAiUsageTarget(db, userId);
+            const usage = await manageAiUsage(
+                db,
+                userId,
+                action,
+                action === "add" ? amount : null,
+            );
+            return res.status(200).json({ usage });
+        }
         if (Array.isArray(req.body?.userIds)) {
             if (currentUser.role !== "super_admin") {
                 throw new HttpError(

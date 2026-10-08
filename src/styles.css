@@ -1,15 +1,14 @@
 :root {
-    /* Biến màu dùng chung để giữ đồng nhất giao diện sáng/tối. */
-    color-scheme: light dark;
-    --bg: light-dark(#f5faf7, #0b1712);
-    --surface: light-dark(#fff, #12211a);
-    --surface2: light-dark(#eef8f1, #172a21);
-    --text: light-dark(#102017, #ecf8f0);
-    --muted: light-dark(#5f7066, #a9bdb0);
-    --line: light-dark(#d9e8de, #294036);
-    --primary: light-dark(#16834b, #54d58d);
-    --primary2: light-dark(#e2f6e9, #173c2a);
-    --shadow: 0 18px 45px #0b241310;
+    color-scheme: light;
+    --bg: #f6f9fb;
+    --surface: #fff;
+    --surface2: #f0f7f3;
+    --text: #172b3a;
+    --muted: #607381;
+    --line: #dce6e9;
+    --primary: #16834b;
+    --primary2: #e5f4eb;
+    --shadow: 0 12px 32px #183b2a12;
 }
 /* Quy tắc cơ bản và khung ứng dụng. */
 * {
@@ -19,6 +18,7 @@ body {
     margin: 0;
     background: var(--bg);
     color: var(--text);
+    line-height: 1.5;
     font-family:
         Inter,
         system-ui,
@@ -38,6 +38,13 @@ button:disabled {
     cursor: not-allowed;
     opacity: 0.65;
 }
+button {
+    transition:
+        background-color 0.16s ease,
+        border-color 0.16s ease,
+        color 0.16s ease,
+        box-shadow 0.16s ease;
+}
 .error {
     color: #c0392b;
     line-height: 1.5;
@@ -56,7 +63,7 @@ button:disabled {
     border-bottom: 1px solid var(--line);
     position: sticky;
     top: 0;
-    background: light-dark(#f5faf7ef, #0b1712ef);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
     backdrop-filter: blur(12px);
     z-index: 10;
 }
@@ -73,7 +80,7 @@ button:disabled {
     width: 40px;
     height: 40px;
     border-radius: 13px;
-    background: var(--primary);
+    background: url("/favicon.svg");
     color: white;
     display: grid;
     place-items: center;
@@ -113,6 +120,67 @@ nav button:hover {
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
+}
+.accountDropdown {
+    position: relative;
+}
+.accountDropdownTrigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 160px;
+    max-width: 230px;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    list-style: none;
+}
+.accountDropdownTrigger::-webkit-details-marker {
+    display: none;
+}
+.accountDropdownTrigger:hover,
+.accountDropdown[open] .accountDropdownTrigger {
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
+    background: var(--surface2);
+}
+.accountDropdownTrigger .accountIdentity {
+    flex: 1;
+}
+.accountDropdownChevron {
+    color: var(--muted);
+    font-size: 12px;
+}
+.accountDropdown[open] .accountDropdownChevron {
+    transform: rotate(180deg);
+}
+.accountDropdownPanel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    display: grid;
+    width: 220px;
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+.accountDropdownPanel button {
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+}
+.accountDropdownPanel button:hover {
+    background: var(--primary2);
+    color: var(--primary);
 }
 .accountIdentity {
     max-width: 190px;
@@ -212,6 +280,9 @@ nav button:hover {
     border-radius: 12px;
     background: var(--surface2);
 }
+.recoverBackButton {
+    margin: 10px 0 18px;
+}
 .accountModeTabs button {
     border: 0;
     border-radius: 9px;
@@ -305,6 +376,12 @@ nav button:hover {
     font-weight: 400;
     line-height: 1.45;
 }
+.successMessage {
+    margin: 0;
+    color: #16794b;
+    font-size: 13px;
+    line-height: 1.5;
+}
 .captchaField {
     display: grid;
     justify-items: center;
@@ -329,8 +406,19 @@ nav button:hover {
     color: var(--primary);
     font-weight: 800;
 }
+.forgotPasswordButton,
+.resendCodeButton {
+    display: block;
+    margin: 14px auto 0;
+}
 .sectionHeader {
-    margin-bottom: 22px;
+    margin-bottom: 24px;
+}
+.sectionHeader p {
+    max-width: 760px;
+    margin: 6px 0 0;
+    color: var(--muted);
+    line-height: 1.65;
 }
 .loginRequired {
     max-width: 620px;
@@ -511,6 +599,19 @@ nav button:hover {
     gap: 10px;
     padding: 14px;
     cursor: pointer;
+}
+button,
+input,
+select,
+textarea {
+    accent-color: var(--primary);
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary) 28%, transparent);
+    outline-offset: 2px;
     font-weight: 800;
 }
 .managedUser summary .tag {
@@ -718,9 +819,18 @@ main {
     border-color: var(--primary);
     font-weight: 800;
 }
+.primary:hover:not(:disabled) {
+    background: #116e3e;
+    border-color: #116e3e;
+    box-shadow: 0 5px 14px #16834b24;
+}
 .secondary {
     background: var(--surface);
     color: var(--text);
+}
+.secondary:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--primary) 36%, var(--line));
+    background: var(--surface2);
 }
 .heroCard {
     background: linear-gradient(145deg, var(--surface), var(--surface2));
@@ -785,19 +895,25 @@ main {
 }
 .grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
     gap: 16px;
 }
 .card {
+    min-width: 0;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 18px;
     padding: 20px;
-    transition: 0.2s;
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        border-color 0.18s ease;
 }
 .card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--primary) 24%, var(--line));
+    box-shadow: 0 14px 28px #183b2a12;
 }
 .card.empty.loading {
     display: flex;
@@ -874,7 +990,8 @@ article.card h3 {
 }
 article.card p {
     color: var(--muted);
-    line-height: 100%;
+    line-height: 1.6;
+    margin: 8px 0 18px;
 }
 article.card:has(.cardReadMore) {
     display: flex;
@@ -1146,6 +1263,34 @@ article.card:has(.cardReadMore) {
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 12px;
+}
+.aiUsageIndicator {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+.aiLimitControls {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+}
+.aiLimitControls h3,
+.aiLimitControls p {
+    margin: 0;
+}
+.aiLimitActions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+}
+.aiLimitActions label {
+    display: grid;
+    gap: 4px;
+    min-width: 130px;
 }
 .expandChat {
     flex: 0 0 auto;
@@ -1473,6 +1618,20 @@ hr {
         gap: 5px;
         padding-top: 8px;
         border-top: 1px solid var(--line);
+    }
+    .accountDropdown.mobile,
+    .accountDropdown.mobile .accountDropdownTrigger {
+        width: 100%;
+        max-width: none;
+    }
+    .accountDropdown.mobile .accountDropdownPanel {
+        position: static;
+        width: 100%;
+        margin-top: 5px;
+        padding: 0 0 0 12px;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
     }
     .mobileAccountActions span {
         padding: 8px 12px;

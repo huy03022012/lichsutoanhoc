@@ -3,9 +3,12 @@ import {
     deleteManagedUser,
     deleteManagedUsers,
     getAccountDeletionRequests,
+    getManagedUserAiUsage,
     getManagedUsers,
+    manageManagedUserAiLimit,
     requestAccountDeletions,
     requestAccountDeletion,
+    resetManagedUserLoginAttempts,
     resolveAccountDeletionRequest,
     updateManagedUser,
     updateManagedUsers,
@@ -18,6 +21,143 @@ const roleLabels = {
     super_admin: "Super admin",
 };
 const roles = Object.keys(roleLabels);
+
+function AiLimitControls({ userId }) {
+    const [usage, setUsage] = useState(null);
+    const [amount, setAmount] = useState("10");
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState("");
+    const [message, setMessage] = useState("");
+
+    useEffect(() => {
+        let active = true;
+        getManagedUserAiUsage(userId)
+            .then((result) => {
+                if (active) setUsage(result.usage);
+            })
+            .catch((loadError) => {
+                if (active) setError(loadError.message);
+            });
+        return () => {
+            active = false;
+        };
+    }, [userId]);
+
+    async function apply(action) {
+        setBusy(true);
+        setError("");
+        setMessage("");
+        try {
+            const result = await manageManagedUserAiLimit(
+                userId,
+                action,
+                action === "add" ? Number(amount) : undefined,
+            );
+            setUsage(result.usage);
+            setMessage(
+                action === "reset"
+                    ? "Đã đặt lại về 20 lượt mỗi 10 phút."
+                    : action === "add"
+                      ? `Đã cấp thêm ${amount} lượt AI.`
+                      : action === "unlimited"
+                        ? "Đã bỏ giới hạn AI cho tài khoản."
+                        : "Đã bật lại giới hạn mặc định.",
+            );
+        } catch (actionError) {
+            setError(actionError.message);
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    return (
+        <section className="aiLimitControls">
+            <h3>Hạn mức AI</h3>
+            {usage ? (
+                <p className="muted">
+                    {usage.privileged
+                        ? "Tài khoản super admin gốc luôn được dùng AI không giới hạn."
+                        : usage.unlimited
+                          ? "Không giới hạn"
+                          : `${usage.remaining} lượt còn lại (${usage.used} đã dùng${usage.bonus ? `, ${usage.bonus} lượt cộng thêm` : ""})`}
+                    {!usage.privileged && !usage.unlimited && usage.resetAt && (
+                        <>
+                            {" · Làm mới lúc "}
+                            {new Date(usage.resetAt).toLocaleTimeString(
+                                "vi-VN",
+                                { hour: "2-digit", minute: "2-digit" },
+                            )}
+                        </>
+                    )}
+                </p>
+            ) : (
+                <p className="muted">Đang tải hạn mức…</p>
+            )}
+            {!usage?.privileged && (
+                <div className="aiLimitActions">
+                    <button
+                        className="secondary"
+                        type="button"
+                        disabled={busy || usage?.unlimited !== true}
+                        onClick={() => apply("limited")}
+                    >
+                        Bật giới hạn mặc định
+                    </button>
+                    <button
+                        className="secondary"
+                        type="button"
+                        disabled={busy || usage?.unlimited === true}
+                        onClick={() => apply("unlimited")}
+                    >
+                        Bỏ giới hạn
+                    </button>
+                    <button
+                        className="secondary"
+                        type="button"
+                        disabled={busy || !usage}
+                        onClick={() => apply("reset")}
+                    >
+                        Đặt lại 20 lượt
+                    </button>
+                    <label>
+                        Cấp thêm lượt
+                        <input
+                            type="number"
+                            min="1"
+                            max="1000000"
+                            step="1"
+                            value={amount}
+                            onChange={(event) => setAmount(event.target.value)}
+                        />
+                    </label>
+                    <button
+                        className="secondary"
+                        type="button"
+                        disabled={
+                            busy ||
+                            !Number.isInteger(Number(amount)) ||
+                            Number(amount) < 1 ||
+                            Number(amount) > 1_000_000
+                        }
+                        onClick={() => apply("add")}
+                    >
+                        Cấp lượt
+                    </button>
+                </div>
+            )}
+            {error && (
+                <p className="error" role="alert">
+                    {error}
+                </p>
+            )}
+            {message && (
+                <p className="muted" role="status">
+                    {message}
+                </p>
+            )}
+        </section>
+    );
+}
 
 function ManagedUserRow({
     user,
@@ -80,6 +220,20 @@ function ManagedUserRow({
             const result = await requestAccountDeletion(user.id);
             onDeletionRequested(result.request);
             setActionMessage("Đã gửi yêu cầu cho super admin duyệt.");
+        } catch (requestError) {
+            setError(requestError.message);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function resetLoginAttempts() {
+        setLoading(true);
+        setError("");
+        setActionMessage("");
+        try {
+            const result = await resetManagedUserLoginAttempts(user.id);
+            setActionMessage(result.message);
         } catch (requestError) {
             setError(requestError.message);
         } finally {
@@ -225,6 +379,19 @@ function ManagedUserRow({
                             )
                         )}
                     </>
+                )}
+                {isSuperAdmin && <AiLimitControls userId={user.id} />}
+                {isSuperAdmin && (
+                    <button
+                        className="secondary"
+                        type="button"
+                        disabled={loading}
+                        onClick={resetLoginAttempts}
+                    >
+                        {loading
+                            ? "Đang đặt lại…"
+                            : "Đặt lại lượt đăng nhập"}
+                    </button>
                 )}
                 {error && (
                     <p className="error" role="alert">
@@ -521,7 +688,7 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
                     </p>
                 </div>
                 <button
-                    className="secondary"
+                    className="primary"
                     type="button"
                     onClick={loadUsers}
                     disabled={loading}

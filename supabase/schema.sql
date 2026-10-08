@@ -1,8 +1,10 @@
--- Tài khoản không dùng email/Google Auth; mật khẩu chỉ lưu dưới dạng scrypt hash.
+-- Tài khoản không dùng Google Auth; mật khẩu chỉ lưu dưới dạng scrypt hash.
 create table if not exists public.account_users (
     id uuid primary key default gen_random_uuid(),
     username text not null unique,
     display_name text,
+    email text,
+    email_verified_at timestamptz,
     password_hash text not null,
     role text not null default 'student'
         check (role in ('student', 'teacher', 'admin', 'super_admin')),
@@ -13,11 +15,19 @@ create table if not exists public.account_users (
 
 alter table public.account_users
     add column if not exists display_name text;
+alter table public.account_users
+    add column if not exists email text;
+alter table public.account_users
+    add column if not exists email_verified_at timestamptz;
 update public.account_users
 set display_name = username
 where display_name is null or btrim(display_name) = '';
 alter table public.account_users
     alter column display_name set not null;
+
+create unique index if not exists account_users_email_unique_idx
+    on public.account_users (email)
+    where email is not null;
 
 alter table public.account_users
     drop constraint if exists account_users_display_name_check;
@@ -229,6 +239,142 @@ end;
 $$;
 
 drop function if exists public.consume_account_login_rate_limit(text[], integer[], integer);
+
+create table if not exists public.account_email_verification_codes (
+    purpose text not null check (purpose in ('registration', 'password_reset', 'email_update')),
+    email_hash text not null,
+    subject_hash text not null,
+    code_hash text,
+    attempts integer not null default 0 check (attempts >= 0),
+    expires_at timestamptz,
+    send_window_started_at timestamptz not null default now(),
+    sends_in_window integer not null default 0 check (sends_in_window >= 0),
+    last_sent_at timestamptz,
+    primary key (purpose, email_hash)
+);
+
+alter table public.account_email_verification_codes
+    drop constraint if exists account_email_verification_codes_purpose_check;
+alter table public.account_email_verification_codes
+    add constraint account_email_verification_codes_purpose_check
+    check (purpose in ('registration', 'password_reset', 'email_update'));
+
+create index if not exists account_email_verification_codes_expires_at_idx
+    on public.account_email_verification_codes (expires_at);
+
+create or replace function public.save_account_email_code(
+    p_purpose text,
+    p_email_hash text,
+    p_subject_hash text,
+    p_code_hash text
+)
+returns integer
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+    v_now timestamptz := clock_timestamp();
+    v_row public.account_email_verification_codes%rowtype;
+begin
+    if p_purpose not in ('registration', 'password_reset', 'email_update')
+       or p_email_hash is null or char_length(p_email_hash) <> 64
+       or p_subject_hash is null or char_length(p_subject_hash) <> 64
+       or p_code_hash is null or char_length(p_code_hash) <> 64 then
+        raise exception 'Invalid email verification input';
+    end if;
+
+    insert into public.account_email_verification_codes (purpose, email_hash, subject_hash)
+    values (p_purpose, p_email_hash, p_subject_hash)
+    on conflict (purpose, email_hash) do nothing;
+
+    select * into v_row
+    from public.account_email_verification_codes
+    where purpose = p_purpose and email_hash = p_email_hash
+    for update;
+
+    if v_row.last_sent_at > v_now - interval '60 seconds' then
+        return greatest(
+            1,
+            ceil(extract(epoch from (v_row.last_sent_at + interval '60 seconds' - v_now)))::integer
+        );
+    end if;
+
+    if v_row.send_window_started_at > v_now - interval '1 hour'
+       and v_row.sends_in_window >= 5 then
+        return greatest(
+            1,
+            ceil(extract(epoch from (v_row.send_window_started_at + interval '1 hour' - v_now)))::integer
+        );
+    end if;
+
+    update public.account_email_verification_codes
+    set subject_hash = p_subject_hash,
+        code_hash = p_code_hash,
+        attempts = 0,
+        expires_at = v_now + interval '10 minutes',
+        send_window_started_at = case
+            when send_window_started_at <= v_now - interval '1 hour' then v_now
+            else send_window_started_at
+        end,
+        sends_in_window = case
+            when send_window_started_at <= v_now - interval '1 hour' then 1
+            else sends_in_window + 1
+        end,
+        last_sent_at = v_now
+    where purpose = p_purpose and email_hash = p_email_hash;
+
+    delete from public.account_email_verification_codes
+    where expires_at < v_now - interval '1 day';
+
+    return 0;
+end;
+$$;
+
+create or replace function public.consume_account_email_code(
+    p_purpose text,
+    p_email_hash text,
+    p_subject_hash text,
+    p_code_hash text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+    v_row public.account_email_verification_codes%rowtype;
+begin
+    if p_purpose not in ('registration', 'password_reset', 'email_update')
+       or p_email_hash is null or char_length(p_email_hash) <> 64
+       or p_subject_hash is null or char_length(p_subject_hash) <> 64
+       or p_code_hash is null or char_length(p_code_hash) <> 64 then
+        raise exception 'Invalid email verification input';
+    end if;
+
+    select * into v_row
+    from public.account_email_verification_codes
+    where purpose = p_purpose and email_hash = p_email_hash
+    for update;
+
+    if not found or v_row.subject_hash <> p_subject_hash
+       or v_row.expires_at is null or v_row.expires_at <= clock_timestamp()
+       or v_row.attempts >= 5 then
+        return false;
+    end if;
+
+    if v_row.code_hash = p_code_hash then
+        delete from public.account_email_verification_codes
+        where purpose = p_purpose and email_hash = p_email_hash;
+        return true;
+    end if;
+
+    update public.account_email_verification_codes
+    set attempts = attempts + 1
+    where purpose = p_purpose and email_hash = p_email_hash;
+    return false;
+end;
+$$;
 
 create table if not exists public.math_assignments (
     id uuid primary key default gen_random_uuid(),
@@ -504,10 +650,148 @@ begin
 end;
 $$;
 
+create table if not exists public.account_ai_usage (
+    user_id uuid primary key references public.account_users (id) on delete cascade,
+    window_started_at timestamptz not null default now(),
+    used_count integer not null default 0 check (used_count >= 0),
+    bonus_count integer not null default 0 check (bonus_count >= 0),
+    unlimited boolean not null default false,
+    updated_at timestamptz not null default now()
+);
+
+create or replace function public.get_account_ai_usage(p_user_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+    v_usage public.account_ai_usage%rowtype;
+    v_is_super_admin boolean;
+begin
+    insert into public.account_ai_usage (user_id)
+    values (p_user_id)
+    on conflict (user_id) do nothing;
+
+    select * into v_usage
+    from public.account_ai_usage
+    where user_id = p_user_id
+    for update;
+
+    select is_root_admin into v_is_super_admin
+    from public.account_users
+    where id = p_user_id;
+    v_is_super_admin := coalesce(v_is_super_admin, false);
+
+    if v_usage.window_started_at <= now() - interval '10 minutes' then
+        update public.account_ai_usage
+        set window_started_at = now(),
+            used_count = 0,
+            updated_at = now()
+        where user_id = p_user_id
+        returning * into v_usage;
+    end if;
+
+    return jsonb_build_object(
+        'limit', 20,
+        'used', v_usage.used_count,
+        'bonus', v_usage.bonus_count,
+        'remaining', greatest(0, 20 - v_usage.used_count) + v_usage.bonus_count,
+        'unlimited', v_usage.unlimited or v_is_super_admin,
+        'privileged', v_is_super_admin,
+        'reset_at', v_usage.window_started_at + interval '10 minutes'
+    );
+end;
+$$;
+
+create or replace function public.consume_account_ai_usage(p_user_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+    v_usage jsonb;
+    v_unlimited boolean;
+    v_remaining integer;
+begin
+    v_usage := public.get_account_ai_usage(p_user_id);
+    v_unlimited := (v_usage ->> 'unlimited')::boolean;
+    v_remaining := (v_usage ->> 'remaining')::integer;
+
+    if not v_unlimited and v_remaining <= 0 then
+        return v_usage || jsonb_build_object('allowed', false);
+    end if;
+
+    if not v_unlimited then
+        update public.account_ai_usage
+        set used_count = case
+                when used_count < 20 then used_count + 1
+                else used_count
+            end,
+            bonus_count = case
+                when used_count >= 20 then bonus_count - 1
+                else bonus_count
+            end,
+            updated_at = now()
+        where user_id = p_user_id;
+    end if;
+
+    v_usage := public.get_account_ai_usage(p_user_id);
+    return v_usage || jsonb_build_object('allowed', true);
+end;
+$$;
+
+create or replace function public.manage_account_ai_usage(
+    p_user_id uuid,
+    p_action text,
+    p_amount integer default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+begin
+    insert into public.account_ai_usage (user_id)
+    values (p_user_id)
+    on conflict (user_id) do nothing;
+
+    if p_action = 'unlimited' then
+        update public.account_ai_usage
+        set unlimited = true, updated_at = now()
+        where user_id = p_user_id;
+    elsif p_action = 'limited' then
+        update public.account_ai_usage
+        set unlimited = false, updated_at = now()
+        where user_id = p_user_id;
+    elsif p_action = 'reset' then
+        update public.account_ai_usage
+        set window_started_at = now(),
+            used_count = 0,
+            bonus_count = 0,
+            unlimited = false,
+            updated_at = now()
+        where user_id = p_user_id;
+    elsif p_action = 'add' and p_amount between 1 and 1000000 then
+        update public.account_ai_usage
+        set bonus_count = bonus_count + p_amount,
+            updated_at = now()
+        where user_id = p_user_id;
+    else
+        raise exception 'Thao tác hoặc số lượt AI không hợp lệ.';
+    end if;
+
+    return public.get_account_ai_usage(p_user_id);
+end;
+$$;
+
 -- API server dùng service_role; trình duyệt không được truy cập trực tiếp các bảng này.
 alter table public.account_users enable row level security;
 alter table public.account_sessions enable row level security;
 alter table public.account_login_rate_limits enable row level security;
+alter table public.account_email_verification_codes enable row level security;
+alter table public.account_ai_usage enable row level security;
 alter table public.math_assignments enable row level security;
 alter table public.math_submissions enable row level security;
 alter table public.math_library_lessons enable row level security;
@@ -516,6 +800,8 @@ alter table public.account_deletion_requests enable row level security;
 revoke all on public.account_users from public, anon, authenticated;
 revoke all on public.account_sessions from public, anon, authenticated;
 revoke all on public.account_login_rate_limits from public, anon, authenticated;
+revoke all on public.account_email_verification_codes from public, anon, authenticated;
+revoke all on public.account_ai_usage from public, anon, authenticated;
 revoke all on public.math_assignments from public, anon, authenticated;
 revoke all on public.math_submissions from public, anon, authenticated;
 revoke all on public.math_library_lessons from public, anon, authenticated;
@@ -524,6 +810,8 @@ revoke all on public.account_deletion_requests from public, anon, authenticated;
 grant usage on schema public to service_role;
 grant select, insert, update, delete
     on public.account_users, public.account_sessions,
+       public.account_email_verification_codes,
+       public.account_ai_usage,
        public.math_assignments, public.math_submissions,
        public.math_library_lessons,
        public.account_deletion_requests
@@ -540,6 +828,16 @@ revoke all on function public.record_account_login_failure(text, integer)
     from public, anon, authenticated;
 revoke all on function public.reset_account_login_failures(text)
     from public, anon, authenticated;
+revoke all on function public.save_account_email_code(text, text, text, text)
+    from public, anon, authenticated;
+revoke all on function public.consume_account_email_code(text, text, text, text)
+    from public, anon, authenticated;
+revoke all on function public.get_account_ai_usage(uuid)
+    from public, anon, authenticated;
+revoke all on function public.consume_account_ai_usage(uuid)
+    from public, anon, authenticated;
+revoke all on function public.manage_account_ai_usage(uuid, text, integer)
+    from public, anon, authenticated;
 grant execute on function public.delete_account_user(uuid) to service_role;
 grant execute on function public.delete_account_users(uuid[]) to service_role;
 grant execute on function public.update_account_users(uuid[], text, boolean)
@@ -551,4 +849,12 @@ grant execute on function public.check_account_login_lockout(text)
 grant execute on function public.record_account_login_failure(text, integer)
     to service_role;
 grant execute on function public.reset_account_login_failures(text)
+    to service_role;
+grant execute on function public.save_account_email_code(text, text, text, text)
+    to service_role;
+grant execute on function public.consume_account_email_code(text, text, text, text)
+    to service_role;
+grant execute on function public.get_account_ai_usage(uuid) to service_role;
+grant execute on function public.consume_account_ai_usage(uuid) to service_role;
+grant execute on function public.manage_account_ai_usage(uuid, text, integer)
     to service_role;
