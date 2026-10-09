@@ -147,11 +147,14 @@ function AiLimitControls({ userId, usage, onUsageChanged }) {
 function ManagedUserRow({
     user,
     currentUser,
+    selected,
+    onSelectionChange,
     deletionRequest,
     onUpdated,
     onDeleted,
     onDeletionRequested,
 }) {
+    const [expanded, setExpanded] = useState(false);
     const [username, setUsername] = useState(user.username);
     const [displayName, setDisplayName] = useState(
         user.displayName || user.username,
@@ -302,16 +305,36 @@ function ManagedUserRow({
     }
 
     return (
-        <details className="managedUser">
-            <summary>
-                <span className="managedUserIdentity">
-                    {user.displayName || user.username}{" "}
-                    <span className="muted">@{user.username}</span>
-                </span>
-                <span className="tag managedUserRole">
-                    {roleLabels[user.role]}
-                </span>
-                <span className="managedUserBadges">
+        <>
+            <tr className="managedUserTableRow">
+                <td>
+                    <input
+                        type="checkbox"
+                        aria-label={`Chọn tài khoản ${user.username}`}
+                        checked={selected}
+                        disabled={user.is_root_admin || user.id === currentUser.id}
+                        onChange={(event) =>
+                            onSelectionChange(user.id, event.target.checked)
+                        }
+                    />
+                </td>
+                <td className="managedUserName" title={user.displayName || user.username}>
+                    {user.displayName || user.username}
+                </td>
+                <td className="managedUserUsername" title={`@${user.username}`}>
+                    @{user.username}
+                </td>
+                <td>
+                    <span className="managedUserBadges">
+                        {user.is_root_admin ? (
+                            <span className="tag managedUserRole">
+                                Super Admin Gốc
+                            </span>
+                        ) : (
+                            <span className="tag managedUserRole">
+                                {roleLabels[user.role]}
+                            </span>
+                        )}
                     {isSuperAdmin && (
                         <span
                             className="managedUserAiUsage"
@@ -340,17 +363,28 @@ function ManagedUserRow({
                                   : "Đang tải lượt AI…"}
                         </span>
                     )}
-                    {user.is_root_admin && (
-                        <span className="tag">Super admin gốc</span>
-                    )}
                     {user.is_locked && (
                         <span className="lockedTag">Đã khóa</span>
                     )}
                     {deletionRequest && (
                         <span className="tag">Đang chờ duyệt xóa</span>
                     )}
-                </span>
-            </summary>
+                    </span>
+                </td>
+                <td>
+                    <button
+                        className="secondary"
+                        type="button"
+                        aria-expanded={expanded}
+                        onClick={() => setExpanded((value) => !value)}
+                    >
+                        {expanded ? "Đóng" : "Chỉnh sửa"}
+                    </button>
+                </td>
+            </tr>
+            {expanded && (
+                <tr className="managedUserDetailsRow">
+                    <td colSpan={5}>
             <form className="managedUserForm" onSubmit={save}>
                 {isProtectedRoot ? (
                     <p className="muted">
@@ -501,7 +535,10 @@ function ManagedUserRow({
                     </p>
                 )}
             </form>
-        </details>
+                    </td>
+                </tr>
+            )}
+        </>
     );
 }
 
@@ -799,21 +836,6 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
             )}
             {!loading && filteredUsers.length > 0 && (
                 <>
-                    <label className="inlineCheck selectVisibleAccounts">
-                        <input
-                            type="checkbox"
-                            checked={
-                                selectableVisibleUsers.length > 0 &&
-                                selectableVisibleUsers.every((item) =>
-                                    selectedUserIds.includes(item.id),
-                                )
-                            }
-                            onChange={(event) =>
-                                toggleVisibleSelection(event.target.checked)
-                            }
-                        />
-                        Chọn tất cả tài khoản đang hiển thị
-                    </label>
                     {selectedUserIds.length > 0 && (
                         <div className="bulkAccountActions">
                             <strong>
@@ -887,43 +909,53 @@ export default function UserManagementView({ user, onCurrentUserUpdated }) {
                 <p className="muted">Đang tải tài khoản…</p>
             ) : users.length ? (
                 filteredUsers.length ? (
-                    <div className="managedUsers">
+                    <div className="managedUsersTableWrap">
+                        <table className="managedUsersTable">
+                            <thead>
+                                <tr>
+                                    <th scope="col">
+                                        <input
+                                            type="checkbox"
+                                            aria-label="Chọn tất cả tài khoản đang hiển thị"
+                                            checked={
+                                                selectableVisibleUsers.length > 0 &&
+                                                selectableVisibleUsers.every((item) =>
+                                                    selectedUserIds.includes(item.id),
+                                                )
+                                            }
+                                            onChange={(event) =>
+                                                toggleVisibleSelection(event.target.checked)
+                                            }
+                                        />
+                                    </th>
+                                    <th scope="col">Tên</th>
+                                    <th scope="col">Username</th>
+                                    <th scope="col">Vai trò</th>
+                                    <th scope="col">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                         {filteredUsers.map((managedUser) => (
-                            <div
-                                className="managedUserSelectRow"
+                            <ManagedUserRow
                                 key={managedUser.id}
-                            >
-                                <input
-                                    type="checkbox"
-                                    aria-label={`Chọn tài khoản ${managedUser.username}`}
-                                    checked={selectedUserIds.includes(
+                                user={managedUser}
+                                currentUser={user}
+                                selected={selectedUserIds.includes(
+                                    managedUser.id,
+                                )}
+                                onSelectionChange={toggleUserSelection}
+                                deletionRequest={deletionRequests.find(
+                                    (request) =>
+                                        request.target_user_id ===
                                         managedUser.id,
-                                    )}
-                                    disabled={
-                                        managedUser.is_root_admin ||
-                                        managedUser.id === user.id
-                                    }
-                                    onChange={(event) =>
-                                        toggleUserSelection(
-                                            managedUser.id,
-                                            event.target.checked,
-                                        )
-                                    }
-                                />
-                                <ManagedUserRow
-                                    user={managedUser}
-                                    currentUser={user}
-                                    deletionRequest={deletionRequests.find(
-                                        (request) =>
-                                            request.target_user_id ===
-                                            managedUser.id,
-                                    )}
-                                    onUpdated={replaceUser}
-                                    onDeleted={removeUser}
-                                    onDeletionRequested={addDeletionRequest}
-                                />
-                            </div>
+                                )}
+                                onUpdated={replaceUser}
+                                onDeleted={removeUser}
+                                onDeletionRequested={addDeletionRequest}
+                            />
                         ))}
+                            </tbody>
+                        </table>
                     </div>
                 ) : (
                     <div className="card empty">
