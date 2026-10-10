@@ -92,4 +92,11 @@ npm run build
 npm start
 ```
 
-Trước khi chạy AI, sao chép `.env.example` thành `.env` và đặt `GEMINI_API_KEY` ở backend. Nếu khóa đã từng bị lộ, hãy thu hồi và tạo khóa mới trong Google AI Studio.
+Trước khi chạy AI, sao chép `.env.example` thành `.env` và đặt `GEMINI_API_KEY` ở backend. Có thể thêm nhiều khóa dự phòng trong `GEMINI_API_KEYS`, phân tách bằng dấu phẩy (hoặc mỗi khóa một dòng); khi Gemini trả lỗi hết quota/rate limit cho một khóa, backend tự thử khóa kế tiếp. Ví dụ:
+
+```env
+GEMINI_API_KEY=khóa_chính
+GEMINI_API_KEYS=khóa_dự_phòng_1,khóa_dự_phòng_2
+```
+
+Đặt các biến này trong Environment Variables của Vercel hoặc môi trường chạy backend Node, không đặt trong biến frontend có tiền tố `VITE_`. Nếu một khóa đã từng bị lộ, hãy thu hồi và tạo khóa mới trong Google AI Studio.

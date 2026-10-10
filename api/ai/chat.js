@@ -1,6 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
 import { validateAiImage } from "../../src/services/aiImage.js";
 import { buildAiSystemInstruction } from "../../src/services/aiPrompt.js";
+import {
+    generateGeminiContent,
+    getGeminiApiKeys,
+} from "../../src/services/geminiClient.js";
 import {
     getDatabase,
     requireAuthenticatedRequest,
@@ -51,10 +54,12 @@ export default async function handler(req, res) {
     if (imageError) {
         return res.status(400).json({ error: imageError });
     }
-    if (!process.env.GEMINI_API_KEY) {
+    if (getGeminiApiKeys().length === 0) {
         return res
             .status(503)
-            .json({ error: "Chưa cấu hình GEMINI_API_KEY trên Vercel." });
+            .json({
+                error: "Chưa cấu hình GEMINI_API_KEY hoặc GEMINI_API_KEYS trên Vercel.",
+            });
     }
 
     let usage;
@@ -77,7 +82,6 @@ export default async function handler(req, res) {
 
     try {
         // Khởi tạo client trong backend và yêu cầu mô hình chỉ trả lời đúng chủ đề.
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
         const parts = [];
         // Chế độ chấm bài chỉ được kích hoạt bởi cờ riêng từ nút trên giao diện.
         parts.push({
@@ -99,7 +103,7 @@ export default async function handler(req, res) {
                 inlineData: { mimeType: image.mimeType, data: image.data },
             });
         }
-        const response = await ai.models.generateContent({
+        const response = await generateGeminiContent({
             model,
             contents: [{ role: "user", parts }],
             config: {

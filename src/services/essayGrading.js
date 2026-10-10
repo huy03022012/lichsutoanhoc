@@ -1,5 +1,8 @@
-import { GoogleGenAI } from "@google/genai";
 import { HttpError } from "./accountAuth.js";
+import {
+    generateGeminiContent,
+    getGeminiApiKeys,
+} from "./geminiClient.js";
 
 const MODEL = "gemini-3.5-flash-lite";
 
@@ -45,19 +48,18 @@ export function parseEssayGradeResponse(responseText, questions) {
 
 export async function gradeEssayQuestions(questions) {
     if (!questions.length) return [];
-    if (!process.env.GEMINI_API_KEY) {
+    if (getGeminiApiKeys().length === 0) {
         throw new HttpError(
             503,
-            "Chưa cấu hình GEMINI_API_KEY cho chức năng chấm tự luận bằng AI.",
+            "Chưa cấu hình GEMINI_API_KEY hoặc GEMINI_API_KEYS cho chức năng chấm tự luận bằng AI.",
         );
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     let response;
     try {
         // Đáp án và bài làm được gửi cho Gemini dưới dạng dữ liệu; prompt yêu cầu
         // bỏ qua các chỉ thị nằm trong nội dung học sinh và yêu cầu JSON có cấu trúc.
-        response = await ai.models.generateContent({
+        response = await generateGeminiContent({
             model: MODEL,
             contents: [
                 {

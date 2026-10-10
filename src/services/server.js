@@ -1,10 +1,13 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-import { GoogleGenAI } from "@google/genai";
 import { lessons, quiz, timeline } from "../data/content.js";
 import { buildAiSystemInstruction } from "./aiPrompt.js";
 import { validateAiImage } from "./aiImage.js";
+import {
+    generateGeminiContent,
+    getGeminiApiKeys,
+} from "./geminiClient.js";
 import accountHandler from "../../api/auth.js";
 import managedUsersHandler from "../../api/admin/users.js";
 import deletionRequestsHandler from "../../api/admin/deletion-requests.js";
@@ -191,11 +194,6 @@ app.all(
     assignmentSubmissionsHandler,
 );
 
-// Chỉ backend mới đọc biến khóa Gemini; không dùng tiền tố VITE_.
-const ai = process.env.GEMINI_API_KEY
-    ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
-    : null;
-
 app.post("/api/ai/chat", async (req, res) => {
         const message =
             typeof req.body?.message === "string"
@@ -214,7 +212,7 @@ app.post("/api/ai/chat", async (req, res) => {
         const imageError = validateAiImage(image);
         if (imageError)
             return res.status(400).json({ error: imageError });
-        if (!ai)
+        if (getGeminiApiKeys().length === 0)
             return res
                 .status(503)
                 .json({ error: "AI chưa được cấu hình ở backend." });
@@ -262,7 +260,7 @@ app.post("/api/ai/chat", async (req, res) => {
                     inlineData: { mimeType: image.mimeType, data: image.data },
                 });
             }
-            const response = await ai.models.generateContent({
+            const response = await generateGeminiContent({
                 model: "gemini-3.5-flash",
                 contents: [{ role: "user", parts }],
                 config: {
