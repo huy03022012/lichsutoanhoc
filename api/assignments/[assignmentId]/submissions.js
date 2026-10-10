@@ -10,6 +10,8 @@ import { gradeEssayQuestions } from "../../../src/services/essayGrading.js";
 
 const STAFF = ["teacher", "admin", "super_admin"];
 
+// Endpoint xử lý bài nộp theo vai trò: học sinh chỉ đọc/nộp bài của mình,
+// nhân viên đọc hoặc nhận xét trong phạm vi quyền được cấp.
 export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     try {
@@ -35,6 +37,8 @@ export default async function handler(req, res) {
             let essayQuestions = [];
             let score = 0;
             if (assignment.quiz_questions?.length) {
+                // Câu trắc nghiệm được chấm ngay tại backend; câu tự luận chỉ gom
+                // dữ liệu cần thiết để chấm AI sau khi đã kiểm tra từng câu.
                 const answers = req.body?.answers;
                 if (
                     !Array.isArray(answers) ||
@@ -105,6 +109,9 @@ export default async function handler(req, res) {
                 .maybeSingle();
             if (existingError) throw existingError;
             if (existingSubmission) {
+                // Unique key assignment/student bảo đảm mỗi học sinh chỉ có một bài.
+                // Cho phép chạy lại chấm AI khi bài giống hệt nhưng kết quả AI chưa có,
+                // còn bài đã được chấm/nhận xét thì trả kết quả hiện tại không ghi đè.
                 if (existingSubmission.answer !== answer) {
                     throw new HttpError(
                         409,
@@ -125,6 +132,8 @@ export default async function handler(req, res) {
                 }
             }
             if (essayQuestions.length) {
+                // Hoàn tất chấm ngoài DB trước khi upsert: lỗi Gemini không để lại
+                // một hàng bài nộp giả vờ đã được chấm.
                 autoFeedback = await gradeEssayQuestions(essayQuestions);
                 score += autoFeedback.reduce(
                     (total, result) => total + result.score,
@@ -158,6 +167,8 @@ export default async function handler(req, res) {
 
         if (req.method === "GET") {
             if (user.role === "student") {
+                // Truy vấn gắn cả assignment_id và student_id để không thể đọc bài
+                // của học sinh khác bằng cách đổi ID trên URL.
                 const { data, error } = await db
                     .from("math_submissions")
                     .select("id, answer, teacher_feedback, auto_score, auto_max_score, auto_feedback, teacher_score, submitted_at, updated_at")

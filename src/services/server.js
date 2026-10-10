@@ -75,6 +75,8 @@ app.use(cors({ origin: clientOrigins }));
 // Request chat có thể chứa ảnh base64 3 MB; giới hạn body để chống payload quá lớn.
 app.use(express.json({ limit: "4.2mb" }));
 app.use("/api", async (req, res, next) => {
+    // Để /auth tự xử lý cả GET công khai (trạng thái chưa đăng nhập) lẫn các
+    // thao tác có phiên; các route còn lại cần xác thực trước khi vào handler.
     if (req.path === "/auth") return next();
     if (
         await requireAuthenticatedRequest(
@@ -90,6 +92,8 @@ app.use(express.static(distDirectory));
 
 // Trả nội dung dùng chung của website; không gửi đáp án quiz xuống frontend.
 app.get("/api/content", async (_req, res, next) => {
+    // Ghép dữ liệu tĩnh trong source với bài bổ sung lưu ở Supabase, nhưng chỉ đưa
+    // phần public của quiz để đáp án không bị lộ qua endpoint khởi tạo giao diện.
     try {
         const additionalContent = await loadAdditionalLibraryContent(
             getDatabase(),
@@ -217,6 +221,8 @@ app.post("/api/ai/chat", async (req, res) => {
 
         let usage;
         try {
+            // RPC trong database đặt chỗ lượt trước khi gọi Gemini; hạn mức vẫn
+            // chính xác khi có nhiều request đồng thời từ cùng một tài khoản.
             usage = await consumeAiUsage(
                 getDatabase(),
                 req.authenticatedUserId,
@@ -271,6 +277,8 @@ app.post("/api/ai/chat", async (req, res) => {
                     .json({ error: "Dịch vụ AI không trả về nội dung." });
             return res.json({ success: true, answer: response.text, usage });
         } catch (error) {
+            // Lỗi từ Gemini không được chuyển tiếp nguyên văn vì có thể chứa chi tiết
+            // nhà cung cấp; đồng thời không hoàn lượt đã tiêu thụ ở lần thử này.
             console.error("Lỗi gọi Gemini:", error);
             return res
                 .status(502)

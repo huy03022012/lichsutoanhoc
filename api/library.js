@@ -13,6 +13,8 @@ import {
 
 const STAFF_ROLES = ["teacher", "admin", "super_admin"];
 
+// Chỉ nhân viên được thêm nội dung; body được chuẩn hóa bởi service trước khi
+// ghi Supabase để API local và serverless áp dụng cùng luật dữ liệu.
 export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     try {
@@ -47,6 +49,8 @@ export default async function handler(req, res) {
             )
             .single();
         if (error) {
+            // Biến lỗi thiếu bảng thành thông báo cấu hình có hướng khắc phục;
+            // không che các lỗi truy vấn hoặc quyền DB khác.
             if (isMissingLibraryTableError(error)) {
                 throw getLibrarySchemaError();
             }

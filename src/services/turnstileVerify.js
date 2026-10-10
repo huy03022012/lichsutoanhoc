@@ -1,5 +1,6 @@
 import { HttpError } from "./accountAuth.js";
 
+// Xác minh CAPTCHA ở server-to-server; kết quả phía trình duyệt không được tin cậy.
 export async function verifyTurnstileToken(
     token,
     {
@@ -21,6 +22,8 @@ export async function verifyTurnstileToken(
 
     let response;
     try {
+        // Gửi token cùng secret trong form body và giới hạn thời gian chờ để dịch vụ
+        // ngoài không giữ request của người dùng mở vô hạn.
         response = await fetchImpl(
             "https://challenges.cloudflare.com/turnstile/v0/siteverify",
             {
@@ -60,6 +63,7 @@ export async function verifyTurnstileToken(
         throw new HttpError(502, "Dịch vụ CAPTCHA trả về kết quả không hợp lệ.");
     }
     if (
+        // Ràng buộc action và hostname ngăn dùng lại token từ luồng hoặc website khác.
         result?.success !== true ||
         result?.action !== expectedAction ||
         !expectedHostname ||

@@ -2,6 +2,8 @@ import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } fr
 import { promisify } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 
+// Tiện ích dùng chung cho xác thực ở các API serverless và máy chủ Express:
+// danh tính phiên luôn được tra cứu từ Supabase thay vì tin vào dữ liệu do client gửi.
 const scrypt = promisify(scryptCallback);
 const SESSION_COOKIE = "mh_session";
 const SESSION_LIFETIME_SECONDS = 60 * 60 * 24 * 7;
@@ -17,6 +19,8 @@ export class HttpError extends Error {
     }
 }
 
+// Dùng service-role client chỉ trong backend; không bật lưu/refresh phiên ở SDK
+// vì ứng dụng tự quản lý cookie phiên và bảng account_sessions.
 export function getDatabase() {
     const url = process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -40,6 +44,8 @@ export function normalizeUsername(value) {
     return value.trim().toLowerCase();
 }
 
+// Tên đăng nhập khi tạo tài khoản được chuẩn hóa thành ASCII để tránh nhiều cách
+// biểu diễn cùng một định danh; luồng đăng nhập có quy tắc rộng hơn bên dưới.
 export function validateUsername(value) {
     const username = normalizeUsername(value);
     if (
@@ -71,6 +77,8 @@ export function normalizeLoginUsername(value) {
     return username;
 }
 
+// NFC giúp ký tự tiếng Việt ở dạng tổ hợp và dựng sẵn được xử lý nhất quán;
+// Array.from đếm điểm mã Unicode thay vì byte UTF-16.
 export function validateDisplayName(value) {
     if (typeof value !== "string") {
         throw new HttpError(400, "Vui lòng nhập tên hiển thị.");
@@ -96,6 +104,7 @@ export function validateEmail(value) {
     return email;
 }
 
+// Giới hạn độ dài trước khi đưa mật khẩu vào scrypt, bảo vệ cả chính sách lẫn tài nguyên.
 export function validatePassword(value) {
     if (typeof value !== "string" || value.length < 8 || value.length > 128) {
         throw new HttpError(400, "Mật khẩu phải có từ 8 đến 128 ký tự.");
@@ -104,6 +113,8 @@ export function validatePassword(value) {
 }
 
 export async function hashPassword(password) {
+    // Mỗi mật khẩu có salt ngẫu nhiên riêng; tham số scrypt và salt được lưu
+    // cùng hash để lần xác minh tái tạo đúng phép dẫn xuất khóa.
     const salt = randomBytes(16);
     const derivedKey = await scrypt(password, salt, PASSWORD_KEY_LENGTH, {
         N: PASSWORD_COST,
@@ -148,6 +159,7 @@ export async function verifyPassword(password, storedHash) {
             },
         ),
     );
+    // So sánh constant-time sau khi xác nhận độ dài để không rò rỉ tiền tố khớp.
     return (
         expected.length === PASSWORD_KEY_LENGTH &&
         actual.length === expected.length &&
@@ -166,6 +178,7 @@ export function getCookieValue(req, name = SESSION_COOKIE) {
     return null;
 }
 
+// Token thô chỉ tồn tại trong cookie HttpOnly; DB chỉ lưu SHA-256 của token.
 export function setSessionCookie(req, res, token) {
     const secure =
         process.env.NODE_ENV === "production" ||
@@ -186,6 +199,8 @@ export function clearSessionCookie(req, res) {
     );
 }
 
+// Cookie SameSite Strict là lớp bảo vệ chính; kiểm tra Origin thêm một rào chắn
+// cho các thao tác thay đổi dữ liệu, đồng thời cho phép domain client cấu hình rõ ràng.
 export function ensureSameOrigin(req) {
     const origin = req.headers.origin;
     if (!origin) return;
@@ -209,6 +224,8 @@ export function ensureSameOrigin(req) {
 }
 
 export async function createSession(db, req, res, userId) {
+    // Dọn phiên hết hạn trước khi thêm phiên mới; nếu DB lỗi thì không phát cookie
+    // cho một phiên chưa được lưu thành công.
     const { error: cleanupError } = await db
         .from("account_sessions")
         .delete()
@@ -229,6 +246,8 @@ export async function createSession(db, req, res, userId) {
 }
 
 export async function getSessionUser(db, req) {
+    // Mỗi request kiểm tra token, thời hạn và trạng thái khóa trong DB để việc thu hồi
+    // phiên/khóa tài khoản có hiệu lực ngay, không phụ thuộc nội dung cookie cũ.
     const token = getCookieValue(req);
     if (!token) return null;
     const tokenHash = createHash("sha256").update(token).digest("hex");
@@ -273,6 +292,8 @@ export async function requireUser(db, req) {
     return user;
 }
 
+// Middleware dùng chung cho các route yêu cầu tài khoản; trả false sau khi đã gửi
+// response lỗi để caller dừng xử lý, tránh tiếp tục chạy handler không xác thực.
 export async function requireAuthenticatedRequest(req, res, context) {
     try {
         const db = getDatabase();
@@ -292,6 +313,8 @@ export function requireRole(user, roles) {
     }
 }
 
+// Chỉ tạo đối tượng công khai từ các trường cho phép; tuyệt đối không đưa password_hash
+// hoặc thông tin phiên vào response.
 export function publicUser(user) {
     return {
         id: user.id,
@@ -307,6 +330,8 @@ export function publicUser(user) {
 }
 
 export function sendApiError(res, error, context) {
+    // Chỉ HttpError được lộ nội dung thân thiện ra client; lỗi hạ tầng được ghi log
+    // phía server và chuẩn hóa thành thông báo 500 chung.
     const status = error instanceof HttpError ? error.status : 500;
     if (!(error instanceof HttpError)) console.error(context, error);
     return res.status(status).json({

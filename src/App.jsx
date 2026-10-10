@@ -1,3 +1,5 @@
+// Thành phần điều phối giao diện MathHistory AI: quản lý đăng nhập, nội dung,
+// điều hướng và các luồng học tập; phần trình bày chi tiết nằm ở các component con.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ChatMessage from "./components/chat/ChatMessage.jsx";
 import {
@@ -41,6 +43,8 @@ const ACCOUNT_ROLE_LABELS = {
     super_admin: "Super admin",
 };
 
+// Menu tài khoản dùng <details>/<summary> để hỗ trợ thao tác bàn phím tự nhiên;
+// khi focus rời menu hoặc nhấn Escape, menu đóng và Escape trả focus về nút mở.
 function AccountMenu({ user, onEmail, onPassword, onSignOut, mobile = false }) {
     return (
         <details
@@ -100,6 +104,7 @@ function AccountMenu({ user, onEmail, onPassword, onSignOut, mobile = false }) {
 }
 
 function getAiGreeting(displayName = "") {
+    // Chuẩn hóa tên trước khi đưa vào lời chào, tránh ký tự điều khiển hoặc tên quá dài.
     const safeName = displayName
         .normalize("NFC")
         .replace(/[^\p{L}\p{M}\p{N} '-]/gu, "")
@@ -117,6 +122,7 @@ const initialAiMessages = [
 
 // Tạo một cuộc hội thoại mới với lời chào ban đầu từ AI.
 function createConversation(messages = initialAiMessages) {
+    // Mỗi cuộc hội thoại có ID riêng để cập nhật hoặc xóa mà không ảnh hưởng cuộc khác.
     return {
         id: `${Date.now()}-${Math.random()}`,
         title: "Cuộc trò chuyện mới",
@@ -127,6 +133,7 @@ function createConversation(messages = initialAiMessages) {
 
 // Đặt tên cuộc chat theo câu hỏi đầu tiên để người dùng dễ tìm lại.
 function getConversationTitle(messages) {
+    // Tiêu đề được suy ra từ câu hỏi đầu tiên, không phụ thuộc nội dung câu trả lời AI.
     const firstQuestion = messages.find((message) => message.role === "me");
     if (!firstQuestion) return "Cuộc trò chuyện mới";
     const title = firstQuestion.text.replace(/\s+/g, " ").trim();
@@ -135,6 +142,7 @@ function getConversationTitle(messages) {
 
 // Chỉ nhận dữ liệu có role và nội dung hợp lệ trước khi hiển thị Markdown.
 function isValidMessages(messages) {
+    // Kiểm tra cấu trúc tối thiểu của dữ liệu đã lưu trước khi render và xử lý Markdown.
     return (
         Array.isArray(messages) &&
         messages.every(
@@ -167,6 +175,7 @@ function readSavedAiConversations() {
                 const conversations = state.conversations
                     .slice(0, 10)
                     .sort((a, b) => b.updatedAt - a.updatedAt);
+                // Nếu ID đang chọn không còn tồn tại, mở cuộc gần đây nhất làm phương án dự phòng.
                 const activeId = conversations.some(
                     (conversation) => conversation.id === state.activeId,
                 )
@@ -180,6 +189,7 @@ function readSavedAiConversations() {
             localStorage.getItem(LEGACY_AI_CHAT_STORAGE_KEY) ??
             sessionStorage.getItem(LEGACY_AI_CHAT_STORAGE_KEY);
         if (legacyMessages) {
+            // Nâng dữ liệu phiên bản cũ thành một hội thoại để người dùng giữ được lịch sử.
             const messages = JSON.parse(legacyMessages);
             if (isValidMessages(messages)) {
                 const conversation = createConversation(messages);
@@ -324,6 +334,7 @@ function Library({
     const canCreateLesson = ["teacher", "admin", "super_admin"].includes(
         user?.role,
     );
+    // Việc lọc diễn ra trên dữ liệu đã tải; query chỉ đổi khi người dùng gửi biểu mẫu tìm kiếm.
     const filtered = useMemo(
         () =>
             lessons.filter((x) =>
@@ -335,6 +346,7 @@ function Library({
     );
 
     async function submitNewLesson(event) {
+        // Chuyển danh sách nguồn dạng từng dòng "Tên | URL" thành cấu trúc API cần nhận.
         event.preventDefault();
         setSaving(true);
         setCreateError("");
@@ -585,6 +597,7 @@ function Library({
     );
 }
 // Trang chi tiết hiển thị nội dung bài và các liên kết nguồn tham khảo.
+// Chi tiết bài học trình bày nội dung dài, tài liệu tham khảo và đường quay lại thư viện.
 function LessonDetail({ lesson, onBack }) {
     return (
         <section className="view active lessonDetail">
@@ -635,6 +648,7 @@ function LessonDetail({ lesson, onBack }) {
     );
 }
 // Tiêu đề dùng chung cho các trang con.
+// Tiêu đề thống nhất cho các trang nội dung, giúp người dùng nhận biết ngữ cảnh hiện tại.
 function Header({ title, text }) {
     return (
         <div className="sectionHead">
@@ -646,10 +660,12 @@ function Header({ title, text }) {
     );
 }
 // Trạng thái rỗng dùng khi tìm kiếm không có kết quả.
+// Trạng thái rỗng dùng chung khi bộ lọc không tìm thấy kết quả.
 function Empty({ text }) {
     return <div className="card empty">{text}</div>;
 }
 // Trình bày các mốc theo đúng thứ tự backend cung cấp.
+// Dòng thời gian sắp xếp và hiển thị các mốc lịch sử do nội dung cung cấp.
 function TimelineView({ timeline }) {
     return (
         <section className="view active">
@@ -670,6 +686,8 @@ function TimelineView({ timeline }) {
     );
 }
 // Khu vực chat: quản lý 10 cuộc gần đây, trạng thái gửi và lưu trên trình duyệt.
+// Không gian chat gom hội thoại, hạn mức, ảnh đầu vào và trạng thái gửi trong một component;
+// lịch sử được giữ cục bộ trên trình duyệt, còn nội dung AI và hạn mức đến từ API.
 function AIView({ displayName }) {
     // State chat gồm danh sách cuộc, ID đang mở, nội dung nhập, trạng thái gửi và giao diện phóng to.
     const [chatState, setChatState] = useState(readSavedAiConversations);
@@ -696,6 +714,7 @@ function AIView({ displayName }) {
     const messages = activeConversation.messages;
 
     async function refreshAiUsage() {
+        // Lấy hạn mức mới từ máy chủ để đồng bộ lượt còn lại giữa các lần dùng hoặc tab.
         try {
             const result = await getAiUsage();
             setAiUsage(result.usage);
@@ -706,12 +725,14 @@ function AIView({ displayName }) {
     }
 
     useEffect(() => {
+        // Làm mới định kỳ để chỉ báo quota phản ánh thay đổi từ máy chủ khi chat đang mở.
         refreshAiUsage();
         const interval = window.setInterval(refreshAiUsage, 15000);
         return () => window.clearInterval(interval);
     }, []);
 
     useEffect(() => {
+        // Cá nhân hóa lời chào mặc định ở cả những hội thoại đã lưu, không ghi đè hội thoại thật.
         const personalizedGreeting = getAiGreeting(displayName);
         if (personalizedGreeting === AI_GREETING_TEXT) return;
 
@@ -750,6 +771,7 @@ function AIView({ displayName }) {
 
     // Chỉ bật camera khi hộp chụp ảnh đang mở; đổi camera sẽ dừng stream cũ trước.
     useEffect(() => {
+        // Chỉ xin quyền camera khi hộp chụp mở; cờ cancelled ngăn stream đến muộn bị bỏ sót.
         if (!isCameraOpen) return undefined;
 
         let cancelled = false;
@@ -815,6 +837,7 @@ function AIView({ displayName }) {
 
     // Lưu bền vững trên trình duyệt; xóa khóa session cũ sau khi chuyển dữ liệu.
     useEffect(() => {
+        // Bỏ ảnh base64 khỏi bản lưu để tránh vượt dung lượng storage; preview chỉ dùng trong phiên chat.
         try {
             localStorage.setItem(
                 AI_CHAT_STORAGE_KEY,
@@ -836,6 +859,7 @@ function AIView({ displayName }) {
 
     // Tạo cuộc trò chuyện mới và bỏ cuộc cũ nhất nếu đã vượt quá 10 cuộc.
     function startNewConversation() {
+        // Không tạo thêm hội thoại rỗng; danh sách được giới hạn ở 10 cuộc gần đây.
         setChatState((current) => {
             const active = current.conversations.find(
                 (conversation) => conversation.id === current.activeId,
@@ -1022,6 +1046,7 @@ function AIView({ displayName }) {
 
     // Gửi văn bản và/hoặc ảnh lên backend; lịch sử lưu tên ảnh, không lưu dữ liệu ảnh.
     async function ask() {
+        // Chặn gửi rỗng, gửi trùng khi đang chờ và gửi khi quota đã hết theo trạng thái gần nhất.
         const v = input.trim();
         if (
             (!v && !selectedImage) ||
@@ -1054,6 +1079,7 @@ function AIView({ displayName }) {
         ]);
         setLoading(true);
         try {
+            // Ảnh chỉ gửi kèm request hiện tại; phản hồi quota mới (nếu có) thay thế trạng thái cũ.
             const data = await chatWithAI(
                 v,
                 imageForRequest
@@ -1088,6 +1114,7 @@ function AIView({ displayName }) {
         }
     }
     // Chọn hội thoại đang hiển thị và bỏ ảnh đang soạn để tránh gửi nhầm sang chat khác.
+    // Các lớp chatWorkspace/chatExpanded phối hợp CSS để bố cục sidebar và khung chat thích ứng màn hình.
     return (
         <section className="view active">
             <Header
@@ -1189,6 +1216,7 @@ function AIView({ displayName }) {
                     <div className="chatHeader">
                         <div>
                             <span className="muted">Trò chuyện với AI</span>
+                            {/* role=status thông báo quota và phản hồi cập nhật cho công nghệ hỗ trợ. */}
                             <p className="aiUsageIndicator" role="status">
                                 {aiUsage
                                     ? aiUsage.unlimited
@@ -1341,6 +1369,7 @@ function AIView({ displayName }) {
                         }
                     }}
                 >
+                    {/* Hộp camera được đặt tên bằng tiêu đề và đánh dấu modal cho trình đọc màn hình. */}
                     <section
                         className="cameraDialog"
                         role="dialog"
@@ -1409,6 +1438,8 @@ function AIView({ displayName }) {
         </section>
     );
 }
+// Vỏ ứng dụng chịu trách nhiệm khôi phục phiên, tải học liệu sau đăng nhập
+// và chỉ cho phép các vai trò phù hợp đi vào khu vực quản trị.
 function App() {
     // view xác định tab hiện tại; selectedLesson chỉ có giá trị ở trang chi tiết bài.
     const [view, setView] = useState("home");
@@ -1426,6 +1457,7 @@ function App() {
 
     // Chỉ tải học liệu sau khi đã xác thực tài khoản.
     useEffect(() => {
+        // Không tải học liệu trước khi có user; active vô hiệu hóa cập nhật sau khi user đổi/unmount.
         if (!user) {
             setContent(null);
             setError("");
@@ -1445,6 +1477,7 @@ function App() {
     }, [user?.id]);
 
     useEffect(() => {
+        // Khôi phục phiên một lần khi khởi động; giao diện đăng nhập chỉ hiện sau khi kiểm tra xong.
         let active = true;
         getAccount()
             .then((result) => {
@@ -1467,6 +1500,7 @@ function App() {
     }, []);
 
     async function signOut() {
+        // Chỉ xóa trạng thái giao diện sau khi máy chủ xác nhận đăng xuất thành công.
         setAuthNotice("");
         try {
             await submitAccountAction("logout");
@@ -1559,6 +1593,7 @@ function App() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
     function addCreatedLesson(lesson, timelineEntry) {
+        // Đồng bộ học liệu vừa tạo vào state hiện có để thư viện và timeline cập nhật tức thì.
         setContent((current) =>
             current
                 ? {
@@ -1639,6 +1674,7 @@ function App() {
             ? [...navItems, ["users", "Quản lý tài khoản"]]
             : navItems;
     // Điều hướng phía client: đổi nội dung trang mà không tải lại toàn bộ website.
+    // Mục quản trị chỉ được thêm cho admin; nội dung trang cũng có kiểm tra vai trò dự phòng.
     return (
         <div className="app">
             <header className="top">
@@ -1657,6 +1693,7 @@ function App() {
                             key={id}
                             onClick={() => {
                                 setView(id);
+                                // Trên màn hình nhỏ, đóng menu ngay sau khi chọn trang để nhường chỗ nội dung.
                                 setIsMobileMenuOpen(false);
                             }}
                             className={
@@ -1697,6 +1734,7 @@ function App() {
                             Đăng nhập / Đăng ký
                         </button>
                     )}
+                    {/* aria-expanded/controls đồng bộ trạng thái menu mobile với vùng nav được điều khiển. */}
                     <button
                         className="mobileMenuToggle"
                         type="button"
@@ -1760,6 +1798,7 @@ function App() {
     );
 }
 
+// Giới thiệu công khai giúp khách chưa đăng nhập khám phá chủ đề trước khi vào nội dung cá nhân.
 function PublicSearchIntro() {
     return (
         <section className="publicSearchIntro" aria-labelledby="public-search-title">

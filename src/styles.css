@@ -1,4 +1,5 @@
 :root {
+    /* Design tokens giúp đồng bộ màu nền, chữ, đường viền và bóng toàn ứng dụng. */
     color-scheme: light;
     --bg: #f6f9fb;
     --surface: #fff;
@@ -55,6 +56,7 @@ button {
     background: var(--bg);
 }
 .top {
+    /* Thanh điều hướng luôn bám trên cùng để các lối đi chính luôn truy cập được. */
     height: 72px;
     display: flex;
     align-items: center;
@@ -116,6 +118,7 @@ nav button:hover {
     color: var(--text);
 }
 .headerActions {
+    /* Cụm tài khoản và menu giữ nguyên một hàng, kể cả ở breakpoint nhỏ. */
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -123,6 +126,7 @@ nav button:hover {
     flex: 0 0 auto;
 }
 .accountDropdown {
+    /* Làm mốc định vị cho menu xổ xuống của tài khoản. */
     position: relative;
 }
 .accountDropdownTrigger {
@@ -159,6 +163,7 @@ nav button:hover {
     transform: rotate(180deg);
 }
 .accountDropdownPanel {
+    /* Menu phủ lên nội dung bên dưới thay vì đẩy bố cục trang xuống. */
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
@@ -218,6 +223,7 @@ nav button:hover {
     background: #0009;
 }
 .accountPageLayout {
+    /* Hai cột giới thiệu và biểu mẫu tự thu về một cột ở màn hình hẹp. */
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
     align-items: center;
@@ -256,6 +262,7 @@ nav button:hover {
     font-weight: 800;
 }
 .accountDialog {
+    /* Giới hạn chiều cao và cuộn bên trong để hộp thoại dùng được trên điện thoại. */
     width: min(460px, 100%);
     max-height: min(90vh, 760px);
     overflow-y: auto;
@@ -310,6 +317,7 @@ nav button:hover {
 .managedUserForm,
 .assignmentForm,
 .studentAnswer {
+    /* Dùng chung bố cục dọc và khoảng cách cho các biểu mẫu tương tác. */
     display: grid;
     gap: 14px;
 }
@@ -330,6 +338,7 @@ nav button:hover {
 .assignmentForm textarea,
 .studentAnswer textarea,
 .submissionCard textarea {
+    /* Giữ kích thước nhập liệu đồng nhất giữa đăng nhập, quản trị và bài tập. */
     width: 100%;
     border: 1px solid var(--line);
     border-radius: 11px;
@@ -460,6 +469,7 @@ nav button:hover {
     font-size: 13px;
 }
 .accountSearch {
+    /* Ô tìm kiếm co giãn, còn nút tìm luôn giữ kích thước tự nhiên. */
     display: flex;
     gap: 10px;
     margin-bottom: 16px;
@@ -573,12 +583,14 @@ nav button:hover {
     gap: 9px;
 }
 .managedUsersTableWrap {
+    /* Cho phép cuộn ngang bảng trên màn hình nhỏ mà không làm tràn trang. */
     overflow-x: auto;
     border: 1px solid var(--line);
     border-radius: 14px;
     background: var(--surface);
 }
 .managedUsersTable {
+    /* Bố cục cố định giữ các cột nhất quán; chiều rộng tối thiểu bảo vệ độ dễ đọc. */
     width: 100%;
     min-width: 760px;
     table-layout: fixed;
@@ -587,6 +599,7 @@ nav button:hover {
 }
 .managedUsersTable th,
 .managedUsersTable td {
+    /* Căn giữa nội dung theo chiều dọc và tạo đường phân cách từng hàng. */
     padding: 12px 14px;
     border-bottom: 1px solid var(--line);
     vertical-align: middle;
@@ -639,6 +652,7 @@ nav button:hover {
 }
 .managedUserName,
 .managedUserUsername {
+    /* Cắt chuỗi dài bằng dấu ba chấm; title trên ô vẫn cung cấp giá trị đầy đủ. */
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -666,6 +680,7 @@ textarea:focus-visible {
     text-align: center;
 }
 .managedUserBadges {
+    /* Cột con cố định cho vai trò giúp trạng thái lượt AI thẳng hàng giữa các hàng. */
     display: grid;
     grid-template-columns: 140px max-content;
     align-items: center;
@@ -991,6 +1006,7 @@ main {
     box-shadow: 0 14px 28px #183b2a12;
 }
 .card.empty.loading {
+    /* Trạng thái chờ khởi tạo phiên được đặt giữa màn hình thay vì trong lưới nội dung. */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1016,6 +1032,7 @@ main:has(.card.empty.loading) {
     justify-content: center;
 }
 .card.empty.loading::before {
+    /* Vòng xoay được tạo bằng gradient và mask, không cần tải ảnh động bên ngoài. */
     content: "";
     display: block;
     width: 40px;
@@ -1592,6 +1609,7 @@ hr {
 }
 /* Thu gọn điều hướng trước khi các mục và điều khiển tài khoản bị chèn ép. */
 @media (min-width: 851px) and (max-width: 1100px) {
+    /* Ở tablet ngang, thay các liên kết dày đặc bằng menu thu gọn. */
     .mobileMenuToggle {
         position: relative;
         z-index: 12;
@@ -1649,6 +1667,7 @@ hr {
 }
 /* Điều chỉnh bố cục cho tablet và điện thoại. */
 @media (max-width: 850px) {
+    /* Chuyển các bố cục nhiều cột sang dạng gọn cho tablet dọc và điện thoại. */
     .publicSearchTopics {
         grid-template-columns: 1fr;
     }

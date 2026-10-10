@@ -1,5 +1,6 @@
 let turnstileScriptPromise;
 
+// Tải script CAPTCHA một lần và dùng chung Promise giữa các thành phần gọi đồng thời.
 export function loadTurnstile() {
     if (window.turnstile) return Promise.resolve(window.turnstile);
     if (turnstileScriptPromise) return turnstileScriptPromise;
@@ -16,6 +17,7 @@ export function loadTurnstile() {
             resolve(window.turnstile);
         };
         const handleError = () => {
+            // Cho phép lần gọi tiếp theo thử tải lại thay vì giữ Promise lỗi đã lưu.
             turnstileScriptPromise = undefined;
             reject(new Error("Không tải được CAPTCHA. Hãy kiểm tra kết nối mạng."));
         };

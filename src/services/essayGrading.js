@@ -3,6 +3,8 @@ import { HttpError } from "./accountAuth.js";
 
 const MODEL = "gemini-3.5-flash-lite";
 
+// Parse và kiểm chứng đầu ra của mô hình như dữ liệu không đáng tin cậy; chỉ trả
+// kết quả có đủ câu, đúng chỉ số, điểm hữu hạn trong khoảng cho phép và nhận xét hợp lệ.
 export function parseEssayGradeResponse(responseText, questions) {
     let parsed;
     try {
@@ -53,6 +55,8 @@ export async function gradeEssayQuestions(questions) {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     let response;
     try {
+        // Đáp án và bài làm được gửi cho Gemini dưới dạng dữ liệu; prompt yêu cầu
+        // bỏ qua các chỉ thị nằm trong nội dung học sinh và yêu cầu JSON có cấu trúc.
         response = await ai.models.generateContent({
             model: MODEL,
             contents: [
@@ -77,6 +81,8 @@ export async function gradeEssayQuestions(questions) {
             config: { responseMimeType: "application/json" },
         });
     } catch (error) {
+        // Khi dịch vụ ngoài lỗi, ném lỗi trước khi lưu bài để học sinh có thể thử lại
+        // mà không bị ghi nhận như một bài đã chấm dở.
         console.error(
             "Gemini essay grading request failed:",
             error instanceof Error ? error.message : error,

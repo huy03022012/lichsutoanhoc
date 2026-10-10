@@ -10,6 +10,7 @@ import { consumeAiUsage, getAiUsage } from "../../src/services/aiUsage.js";
 const model = "gemini-3.5-flash-lite";
 
 // Serverless endpoint cho /api/ai/chat; GEMINI_API_KEY chỉ đọc ở server.
+// Xác thực dùng chung được chạy trước cả GET hạn mức và POST gửi prompt.
 export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     if (!["GET", "POST"].includes(req.method)) {
@@ -58,6 +59,8 @@ export default async function handler(req, res) {
 
     let usage;
     try {
+        // consumeAiUsage dùng RPC nguyên tử: cấp lượt trước khi gọi mô hình để không
+        // có hai request song song cùng dùng lượt cuối; lỗi AI vẫn tính là một lần thử.
         usage = await consumeAiUsage(db, req.authenticatedUserId);
     } catch (error) {
         console.error("Không thể kiểm tra hạn mức sử dụng AI:", error);

@@ -49,6 +49,10 @@ function hasSubmitted(submission) {
     return Boolean(submission);
 }
 
+// Bảng xem xét bài nộp của giáo viên: mỗi bài nộp có bộ nhớ riêng cho nhận xét và
+// điểm chấm, đồng thời fetch dữ liệu khi mount để hiển thị đáp án, nhận xét AI và
+// kết quả chấm từ phía giáo viên. Đối với bài trắc nghiệm, đáp án được parse từ
+// JSON lưu trong `submission.answer` để map trực tiếp với câu hỏi.
 function SubmissionReview({ assignment, onError }) {
     const [submissions, setSubmissions] = useState([]);
     const [feedbackDrafts, setFeedbackDrafts] = useState({});
@@ -278,6 +282,10 @@ function SubmissionReview({ assignment, onError }) {
     );
 }
 
+// Giao diện quản lý bài tập tập trung vào hai vai trò: người tạo/giáo viên review và
+// người học nộp bài. Chức năng `create`/`submitAnswer`/`removeAssignment` cập nhật
+// cùng một mảng state `assignments`, nên các thay đổi phải được đồng bộ ngay để
+// phản ánh đúng trạng thái nộp và quyền xem của từng người dùng.
 export default function AssignmentsView({ user }) {
     const [assignments, setAssignments] = useState([]);
     const [answers, setAnswers] = useState({});
@@ -324,6 +332,9 @@ export default function AssignmentsView({ user }) {
         loadAssignments();
     }, [user?.id]);
 
+    // Tạo đề bài yêu cầu tổng điểm tối đa phải bằng 10, nếu không sẽ dừng ngay trước
+    // khi gọi API. Đây là validation quan trọng vì `pointsMode` và `questions` có thể
+    // được chỉnh bằng nhiều cách và cần đồng bộ điểm trước khi lưu.
     async function create(event) {
         event.preventDefault();
         setCreating(true);
@@ -354,6 +365,9 @@ export default function AssignmentsView({ user }) {
         }
     }
 
+    // submitAnswer đồng bộ trạng thái bài làm ở client: nó lấy câu trả lời hiện tại
+    // của assignment, gửi lên backend và cập nhật lại `assignments` với `submission`
+    // mới, nên người dùng thấy kết quả nộp ngay mà không cần reload.
     async function submitAnswer(assignmentId) {
         setSavingId(assignmentId);
         setError("");

@@ -1,6 +1,7 @@
 import { requireAuthenticatedRequest } from "../../../src/services/accountAuth.js";
 
-// Chưa lưu bài đã học trên Vercel; không báo thành công khi chưa lưu được dữ liệu.
+// Chưa có kho tiến độ bền vững trên Vercel; xác thực trước rồi trả 503 rõ ràng,
+// không giả lập thành công hoặc ghi dữ liệu chỉ tồn tại trong bộ nhớ tạm của function.
 export default async function handler(req, res) {
     if (!(await requireAuthenticatedRequest(req, res, "Lỗi xác thực tiến độ:"))) {
         return;

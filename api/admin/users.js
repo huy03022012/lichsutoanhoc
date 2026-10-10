@@ -18,6 +18,8 @@ import { resetLoginFailures } from "../../src/services/loginRateLimit.js";
 
 const ROLES = new Set(["student", "teacher", "admin", "super_admin"]);
 
+// Kiểm tra đối tượng tồn tại trước các RPC quản lý hạn mức để phân biệt rõ
+// ID sai với lỗi vận hành của database.
 async function requireAiUsageTarget(db, userId) {
     const { data, error } = await db
         .from("account_users")
@@ -38,6 +40,8 @@ export default async function handler(req, res) {
         if (req.method === "GET") {
             const aiUsageUserId = req.query?.aiUsageFor;
             if (aiUsageUserId !== undefined) {
+                // Thống kê riêng có thể tiết lộ hành vi của người dùng nên chỉ
+                // super admin được truy vấn theo ID; admin thông thường nhận danh sách giới hạn.
                 if (
                     currentUser.role !== "super_admin" ||
                     typeof aiUsageUserId !== "string" ||
@@ -172,6 +176,8 @@ export default async function handler(req, res) {
             return res.status(200).json({ usage });
         }
         if (Array.isArray(req.body?.userIds)) {
+            // Chỉnh sửa hàng loạt chỉ cho phép role/isLocked; RPC áp dụng các quy tắc
+            // bảo vệ tài khoản gốc và super admin hoạt động cuối cùng một cách nguyên tử.
             if (currentUser.role !== "super_admin") {
                 throw new HttpError(
                     403,
@@ -261,6 +267,8 @@ export default async function handler(req, res) {
         }
         const updates = {};
         if (Object.hasOwn(changes, "role")) {
+            // Thay đổi role có thể nâng quyền nên chỉ super admin được thực hiện;
+            // tài khoản root và super admin đang hoạt động cuối cùng được bảo vệ riêng.
             if (currentUser.role !== "super_admin") {
                 throw new HttpError(403, "Chỉ super admin được cấp hoặc tước vai trò.");
             }
@@ -355,6 +363,9 @@ export default async function handler(req, res) {
             if (error) throw error;
         }
         if (passwordHash || updates.is_locked === true) {
+            // Mật khẩu đổi sẽ thu hồi các phiên khác; khóa tài khoản thu hồi tất cả.
+            // Riêng khi người dùng tự đổi mật khẩu, giữ phiên hiện tại để không tự
+            // đăng xuất ngay sau thao tác.
             let sessionsQuery = db
                 .from("account_sessions")
                 .delete()

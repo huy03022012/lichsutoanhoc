@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { submitAccountAction } from "../../services/api.js";
 import { loadTurnstile } from "../../services/turnstileClient.js";
 
+// Dialog đăng nhập/đăng ký/quên mật khẩu dùng chung cho các luồng tài khoản.
+// `mode` kiểm soát trạng thái UI và xác thực: đăng nhập cần CAPTCHA ngay, đăng ký
+// phải validate username/displayName và gửi mã xác thực qua email, còn khôi phục mật
+// khẩu chia thành 2 bước (gửi mã rồi đặt lại mật khẩu). Các lỗi tạm thời được
+// xóa sau 5 giây để tránh trạng thái "đóng băng" khi người dùng sửa lại thông tin.
 export default function AccountDialog({
     onClose = () => {},
     onAuthenticated,
@@ -51,6 +56,9 @@ export default function AccountDialog({
         }, 5000);
     }
 
+    // CAPTCHA được render lại theo từng `mode` để tránh sử dụng token cũ trong
+    // luồng đăng ký hoặc reset mật khẩu. Khi mode đổi hoặc token hết hạn, widget
+    // cũ sẽ được remove để không còn gắn vào form trước đó.
     useEffect(() => {
         setCaptchaToken("");
         setCaptchaError("");
@@ -107,6 +115,10 @@ export default function AccountDialog({
         };
     }, [mode, captchaSiteKey, requiresCaptcha]);
 
+    // submit hợp nhất toàn bộ flow validate và gửi request: kiểm tra username,
+    // đối chiếu mật khẩu, xác nhận CAPTCHA rồi gọi API tương ứng theo `mode`.
+    // Nếu request thất bại, token CAPTCHA sẽ được reset để người dùng không bị mắc ở
+    // trạng thái đã verify nhưng chưa có hành động tiếp theo.
     async function submit(event) {
         event.preventDefault();
         clearErrorTimer();

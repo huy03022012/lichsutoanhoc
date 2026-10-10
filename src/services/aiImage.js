@@ -7,6 +7,8 @@ const BASE64_PATTERN =
     /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 // Kiểm tra cả định dạng lẫn kích thước trước khi gửi dữ liệu ảnh sang Gemini.
+// Giới hạn chuỗi trước khi giải mã để tránh cấp phát buffer lớn từ payload không tin cậy;
+// kích thước byte thực được tính lại vì base64 có phần padding ở cuối.
 export function validateAiImage(image) {
     if (image == null) return null;
     if (

@@ -7,6 +7,7 @@ import {
 import { loadAdditionalLibraryContent } from "../src/services/libraryContent.js";
 
 // Vercel gọi handler này cho GET /api/content để frontend khởi tạo dữ liệu.
+// Endpoint yêu cầu phiên hợp lệ và chỉ trả dữ liệu học tập công khai, không gồm đáp án quiz.
 export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     if (req.method !== "GET") {

@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { submitAccountAction } from "../../services/api.js";
 import { loadTurnstile } from "../../services/turnstileClient.js";
 
+// Modal xác thực email dùng để gửi mã xác minh và sau đó cập nhật địa chỉ mới.
+// Khi chưa gửi mã, CAPTCHA phải được hoàn thành trước khi request; sau khi gửi thành
+// công, form chuyển sang trạng thái "nhập mã" và chỉ cho phép submit lại khi mã hợp lệ.
+// Cấu trúc `role="dialog"` và `aria-modal="true"` giúp màn hình đọc nội dung đúng
+// ngay cả khi modal đang overlay lên màn hình chính.
 export default function EmailVerificationDialog({
     user,
     onClose,
@@ -19,6 +24,9 @@ export default function EmailVerificationDialog({
     const captchaWidgetIdRef = useRef(null);
     const captchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
+    // Tạo CAPTCHA chỉ khi modal đang ở bước yêu cầu mã; khi mã đã được gửi, form
+    // chuyển sang nhập mã xác thực và không cần render widget nữa. Điều này giảm
+    // nhầm lẫn giữa hai trạng thái: "request code" và "verify code".
     useEffect(() => {
         setCaptchaToken("");
         setCaptchaError("");
@@ -73,6 +81,9 @@ export default function EmailVerificationDialog({
         };
     }, [captchaSiteKey, codeSent]);
 
+    // submit chia làm hai nhánh rõ ràng: lần đầu yêu cầu gửi mã, lần sau xác nhận
+    // mã đã nhận. Nếu request lỗi, CAPTCHA sẽ được reset để người dùng không tiếp tục
+    // submit với token hết hạn hoặc quá cũ.
     async function submit(event) {
         event.preventDefault();
         setLoading(true);

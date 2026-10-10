@@ -112,6 +112,7 @@ create table if not exists public.account_login_rate_limits (
     limit_type text not null default 'legacy'
 );
 
+-- Các hàm khóa đăng nhập chạy ở database để việc đếm lần sai không bị lệch khi có yêu cầu đồng thời.
 alter table public.account_login_rate_limits
     add column if not exists blocked_until timestamptz;
 alter table public.account_login_rate_limits
@@ -147,6 +148,7 @@ begin
 end;
 $$;
 
+-- Mỗi lần đăng nhập sai được cập nhật nguyên tử; sau 10 lần, username bị khóa tạm 10–20 phút.
 create or replace function public.record_account_login_failure(
     p_bucket_key text,
     p_max_attempts integer
@@ -220,6 +222,7 @@ begin
 end;
 $$;
 
+-- Chỉ xóa bộ đếm khóa theo username; các giới hạn chống lạm dụng khác không bị ảnh hưởng.
 create or replace function public.reset_account_login_failures(
     p_bucket_key text
 )
@@ -240,6 +243,7 @@ $$;
 
 drop function if exists public.consume_account_login_rate_limit(text[], integer[], integer);
 
+-- Lưu hash của email, đối tượng và mã OTP; không lưu mã xác thực dưới dạng văn bản thuần.
 create table if not exists public.account_email_verification_codes (
     purpose text not null check (purpose in ('registration', 'password_reset', 'email_update')),
     email_hash text not null,
@@ -331,6 +335,7 @@ begin
 end;
 $$;
 
+-- Khóa hàng trong lúc kiểm tra OTP để không thể dùng đồng thời một mã nhiều lần.
 create or replace function public.consume_account_email_code(
     p_purpose text,
     p_email_hash text,
@@ -376,6 +381,7 @@ begin
 end;
 $$;
 
+-- Học liệu, bài tập và bài nộp được lưu riêng; khóa ngoại giữ quan hệ nhất quán khi xóa tài khoản.
 create table if not exists public.math_assignments (
     id uuid primary key default gen_random_uuid(),
     title text not null check (char_length(title) between 1 and 120),
@@ -460,6 +466,7 @@ create table if not exists public.account_deletion_requests (
     reviewed_at timestamptz
 );
 
+-- Yêu cầu đang chờ được duy nhất theo tài khoản, tránh gửi nhiều yêu cầu xóa trùng nhau.
 create unique index if not exists account_deletion_requests_pending_target_idx
     on public.account_deletion_requests (target_user_id)
     where status = 'pending' and target_user_id is not null;
@@ -513,6 +520,7 @@ begin
 end;
 $$;
 
+-- Thao tác xóa hàng loạt dùng chung khóa giao dịch với đổi vai trò để bảo vệ admin hoạt động cuối.
 create or replace function public.delete_account_users(p_user_ids uuid[])
 returns void
 language plpgsql
@@ -539,6 +547,7 @@ begin
 end;
 $$;
 
+-- RPC này kiểm tra cả tài khoản gốc và super admin hoạt động cuối trước khi cập nhật theo lô.
 create or replace function public.update_account_users(
     p_user_ids uuid[],
     p_role text,
@@ -613,6 +622,7 @@ begin
 end;
 $$;
 
+-- Chỉ yêu cầu còn pending mới được giải quyết; duyệt xóa gọi lại hàm xóa có kiểm tra bảo vệ.
 create or replace function public.resolve_account_deletion_request(
     p_request_id uuid,
     p_reviewed_by uuid,
@@ -650,6 +660,7 @@ begin
 end;
 $$;
 
+-- used_count thuộc cửa sổ 10 phút; bonus_count là lượt cấp thêm, không tự hồi lại theo cửa sổ.
 create table if not exists public.account_ai_usage (
     user_id uuid primary key references public.account_users (id) on delete cascade,
     window_started_at timestamptz not null default now(),
@@ -704,6 +715,7 @@ begin
 end;
 $$;
 
+-- Tiêu thụ quota tại database trong một giao dịch, tránh vượt giới hạn khi nhiều yêu cầu chạy song song.
 create or replace function public.consume_account_ai_usage(p_user_id uuid)
 returns jsonb
 language plpgsql
@@ -742,6 +754,7 @@ begin
 end;
 $$;
 
+-- Chỉ server được ủy quyền gọi hàm này để đặt unlimited, reset quota hoặc cấp lượt thưởng.
 create or replace function public.manage_account_ai_usage(
     p_user_id uuid,
     p_action text,
@@ -787,6 +800,7 @@ end;
 $$;
 
 -- API server dùng service_role; trình duyệt không được truy cập trực tiếp các bảng này.
+-- Giữ RLS bật và thu hồi quyền client để mọi thao tác nhạy cảm đi qua API đã xác thực.
 alter table public.account_users enable row level security;
 alter table public.account_sessions enable row level security;
 alter table public.account_login_rate_limits enable row level security;

@@ -28,10 +28,14 @@ import {
     resetLoginFailures,
 } from "../src/services/loginRateLimit.js";
 
+// Handler tập trung cho phiên đăng nhập và các luồng tài khoản; mọi nhánh lỗi đi
+// qua sendApiError để chỉ thông báo an toàn được trả về client.
 const DUMMY_PASSWORD_HASH =
     "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 function getRequestHostname(req) {
+    // Turnstile phải khớp hostname của request thực tế; chỉ lấy một host từ
+    // forwarded header vì proxy có thể nối nhiều giá trị trong chuỗi.
     const forwardedHost = req.headers["x-forwarded-host"];
     const requestHost =
         (typeof forwardedHost === "string" ? forwardedHost : req.headers.host)
@@ -48,6 +52,8 @@ export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     try {
         if (req.method === "GET") {
+            // GET chỉ đọc trạng thái phiên: tài khoản chưa đăng nhập trả user=null,
+            // còn phiên bị khóa sẽ bị thu hồi cookie thay vì coi là lỗi giao diện.
             const db = getDatabase();
             try {
                 const user = await getSessionUser(db, req);
@@ -128,6 +134,8 @@ export default async function handler(req, res) {
         }
 
         if (action === "request-registration-code") {
+            // Trước khi gửi email, xác minh CAPTCHA và kiểm tra trùng lặp để hạn
+            // chế lạm dụng SMTP và tránh gửi mã cho dữ liệu không thể đăng ký.
             const username = validateUsername(req.body?.username);
             const displayName = validateDisplayName(req.body?.displayName);
             const email = validateEmail(req.body?.email);
@@ -322,6 +330,8 @@ export default async function handler(req, res) {
         }
 
         if (action === "request-password-reset") {
+            // Phản hồi luôn giống nhau bất kể email có tồn tại hay không, tránh
+            // tiết lộ danh sách tài khoản đã đăng ký.
             const email = validateEmail(req.body?.email);
             await verifyTurnstileToken(req.body?.captchaToken, {
                 expectedHostname: getRequestHostname(req),
@@ -399,6 +409,8 @@ export default async function handler(req, res) {
         }
 
         if (action === "login") {
+            // CAPTCHA và lockout được kiểm tra trước truy vấn thông tin người dùng;
+            // hash giả bên dưới giữ chi phí xác minh gần giống khi username không tồn tại.
             const username = normalizeLoginUsername(req.body?.username);
             const password = validatePassword(req.body?.password);
             await verifyTurnstileToken(req.body?.captchaToken, {

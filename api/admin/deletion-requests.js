@@ -7,6 +7,8 @@ import {
     sendApiError,
 } from "../../src/services/accountAuth.js";
 
+// Admin chỉ được gửi yêu cầu xóa học sinh; quyền xóa thực tế thuộc super admin
+// và được áp dụng bằng RPC để kiểm tra/trạng thái/yêu cầu được xử lý nhất quán.
 export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     try {
@@ -15,6 +17,8 @@ export default async function handler(req, res) {
         requireRole(currentUser, ["admin", "super_admin"]);
 
         if (req.method === "GET") {
+            // Admin chỉ thấy yêu cầu do chính mình tạo; super admin thấy toàn bộ
+            // hàng chờ để có thể duyệt hoặc từ chối.
             let query = db
                 .from("account_deletion_requests")
                 .select(

@@ -2,6 +2,8 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 // Dùng chung cho mọi API để đọc lỗi từ backend và chuyển thành lỗi dễ hiển thị.
+// Body JSON lỗi hoặc rỗng vẫn được chuẩn hóa thành object; mã trạng thái HTTP được
+// giữ nguyên trong phản hồi fetch nhưng giao diện nhận Error với thông báo API.
 async function request(path, options) {
     const response = await fetch(`${API_BASE_URL}${path}`, options);
     const data = await response.json().catch(() => ({}));
@@ -42,6 +44,8 @@ export function submitQuiz(selectedOption) {
     });
 }
 
+// Các endpoint tài khoản dựa trên cookie phiên HttpOnly; trình duyệt không tự
+// ghép token vào payload, chỉ gửi hành động và dữ liệu cần thiết.
 export function getAccount() {
     return request("/auth", { signal: AbortSignal.timeout(12000) }).catch(
         (error) => {
@@ -75,6 +79,8 @@ export function changeAccountPassword(
     });
 }
 
+// Các thao tác quản trị được gom theo endpoint, còn quyền thực thi được xác minh
+// lại ở backend chứ không dựa vào việc ẩn/hiện nút trên giao diện.
 export function getManagedUsers() {
     return request("/admin/users");
 }

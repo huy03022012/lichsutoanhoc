@@ -2,6 +2,8 @@ import { createHmac, randomInt } from "node:crypto";
 import nodemailer from "nodemailer";
 import { HttpError } from "./accountAuth.js";
 
+// Mã, email và đối tượng liên quan được băm có khóa server-side trước khi lưu;
+// bảng xác minh không cần chứa mã dùng được hoặc địa chỉ email dạng rõ.
 function hashValue(value) {
     const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!secret) {
@@ -26,6 +28,8 @@ function escapeHtml(value) {
     });
 }
 
+// RPC lưu mã và áp dụng giới hạn gửi trước khi SMTP được gọi. Nếu SMTP thất bại,
+// lỗi được trả về và client có thể yêu cầu mã mới sau thời gian giới hạn.
 export async function sendEmailVerificationCode({
     db,
     email,
@@ -42,6 +46,7 @@ export async function sendEmailVerificationCode({
         );
     }
 
+    // Giữ đủ số 0 ở đầu để mã luôn có đúng sáu chữ số.
     const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
     const emailHash = hashValue(`email:${email}`);
     const subjectHash = hashValue(`subject:${purpose}:${subject}`);
@@ -72,6 +77,7 @@ export async function sendEmailVerificationCode({
     }[purpose];
     const safeName = escapeHtml(displayName || "bạn");
     try {
+        // SMTP chạy với timeout hữu hạn để request không treo vô thời hạn.
         const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 465,
@@ -106,6 +112,8 @@ export async function sendEmailVerificationCode({
     }
 }
 
+// Kiểm tra định dạng trước RPC; thao tác consume phía DB xác minh và dùng mã
+// một lần theo cách nguyên tử, tránh hai request tái sử dụng cùng mã.
 export async function consumeEmailVerificationCode({
     db,
     email,

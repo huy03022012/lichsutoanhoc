@@ -3,6 +3,8 @@ import { HttpError } from "./accountAuth.js";
 
 const MAX_FAILED_ATTEMPTS = 10;
 
+// Dùng HMAC làm khóa bucket thay vì lưu tên tài khoản dưới dạng rõ trong bảng
+// giới hạn đăng nhập; cùng username tạo cùng bucket để chia sẻ lịch sử thất bại.
 function createUsernameBucketKey(username) {
     const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!secret) {
@@ -17,6 +19,7 @@ function createUsernameBucketKey(username) {
 }
 
 function throwRateLimit(retryAfter, res) {
+    // RPC trả null/0 khi chưa khóa; chỉ khi có thời gian chờ hợp lệ mới phát 429.
     if (!Number.isInteger(retryAfter) || retryAfter <= 0) return;
     res.setHeader("Retry-After", String(retryAfter));
     throw new HttpError(
@@ -26,6 +29,7 @@ function throwRateLimit(retryAfter, res) {
 }
 
 export async function checkLoginLockout({ db, username, res }) {
+    // Kiểm tra bucket trước khi tra cứu tài khoản để chặn các lần thử đang bị khóa.
     const { data: retryAfter, error } = await db.rpc(
         "check_account_login_lockout",
         { p_bucket_key: createUsernameBucketKey(username) },
@@ -35,6 +39,8 @@ export async function checkLoginLockout({ db, username, res }) {
 }
 
 export async function recordLoginFailure({ db, username, res }) {
+    // Cộng lỗi và quyết định khóa được thực hiện trong RPC để các lần đăng nhập
+    // đồng thời không vượt qua ngưỡng do cập nhật bị mất.
     const { data: retryAfter, error } = await db.rpc(
         "record_account_login_failure",
         {

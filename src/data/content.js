@@ -1,5 +1,7 @@
 // Dữ liệu học liệu dùng chung giữa API local và Vercel serverless functions.
 // Mỗi bài gồm thông tin thẻ, nội dung chi tiết và các nguồn để đọc thêm.
+// Đây là nội dung khởi tạo tĩnh; học liệu do nhân viên thêm được đọc riêng từ Supabase
+// và ghép ở API, vì vậy không ghi dữ liệu người dùng trực tiếp vào module này.
 export const lessons = [
     // Mỗi mục cần id duy nhất; key hỗ trợ tìm kiếm và sources là các liên kết đọc thêm.
     {
@@ -283,6 +285,7 @@ export const lessons = [
 ];
 
 // Mỗi mốc gồm năm, tên sự kiện và lời giới thiệu ngắn.
+// Mảng con giữ đúng thứ tự [mốc thời gian, nhãn, mô tả] mà timeline UI mong đợi.
 export const timeline = [
     ["~3000 TCN", "Ai Cập", "Toán học gắn với đo đạc và đời sống."],
     ["~600 TCN", "Pythagoras", "Các tư tưởng quan trọng về số và hình học."],
@@ -296,6 +299,7 @@ export const timeline = [
 ];
 
 // Đáp án chỉ dùng ở backend; API content chỉ trả câu hỏi và các lựa chọn.
+// Giữ answer ở dữ liệu server-side để việc chấm không thể bị giả mạo bằng client.
 export const quiz = {
     question:
         "Ai là tác giả của “Cơ sở” (Elements), tác phẩm có ảnh hưởng lớn đến hình học?",

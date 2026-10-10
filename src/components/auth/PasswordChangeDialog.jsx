@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { changeAccountPassword } from "../../services/api.js";
 
+// Modal đổi mật khẩu cho người dùng đã đăng nhập. Mỗi trường nhập có toggle ẩn/hiện
+// riêng, và thao tác lưu xác nhận lại bằng API sau khi so khớp mật khẩu mới với xác
+// nhận để tránh rủi ro nhập nhầm trong các luồng bảo mật nhạy cảm.
 export default function PasswordChangeDialog({ onClose, onChanged }) {
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -13,6 +16,9 @@ export default function PasswordChangeDialog({ onClose, onChanged }) {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
+    // Trước khi gọi API đổi mật khẩu, form phải kiểm tra hai trường mới khớp nhau
+    // và không để state lỗi cũ ảnh hưởng đến request mới. Đây là flow bảo mật nhạy
+    // cảm nên không cho phép `loading` lẫn `error` bị lưu quá lâu.
     async function submit(event) {
         event.preventDefault();
         setError("");
@@ -36,6 +42,8 @@ export default function PasswordChangeDialog({ onClose, onChanged }) {
         }
     }
 
+    // `passwordField` tạo lại same markup cho 3 trường với toggle riêng, giúp tránh
+    // nhầm lẫn giữa trường mật khẩu hiện tại, mới và xác nhận mới trong cùng một form.
     function passwordField(label, field, value, setValue, autocomplete) {
         const inputId = `password-change-${field}`;
         const isVisible = visible[field];

@@ -11,6 +11,8 @@ import {
 const CREATORS = ["teacher", "admin", "super_admin"];
 const ASSIGNMENT_TYPES = new Set(["multiple_choice", "written", "mixed"]);
 
+// Chuẩn hóa dữ liệu câu hỏi trước khi lưu để các handler đọc, chấm và hiển thị
+// cùng một cấu trúc, đồng thời không tin điểm hay chỉ số đáp án do client gửi.
 export function validateQuizQuestions(value, assignmentType, pointsMode, commonPoints) {
     if (!Array.isArray(value) || value.length < 1 || value.length > 50) {
         throw new HttpError(400, "Bài cần có từ 1 đến 50 câu hỏi.");
@@ -115,6 +117,8 @@ export default async function handler(req, res) {
         const user = await requireUser(db, req);
 
         if (req.method === "GET") {
+            // Trả lời đúng và đáp án tham khảo chỉ hiện với nhân viên; học sinh
+            // nhận bản sao đã loại bỏ các trường có thể làm lộ đáp án.
             const { data: assignments, error } = await db
                 .from("math_assignments")
                 .select("id, title, description, created_by, assignment_type, quiz_questions, created_at, updated_at")
@@ -203,6 +207,8 @@ export default async function handler(req, res) {
             return res.status(405).json({ error: "Phương thức không được hỗ trợ." });
         }
         ensureSameOrigin(req);
+        // Chỉ nhóm nhân viên được tạo bài; ensureSameOrigin ngăn request thay đổi
+        // dữ liệu được kích hoạt từ một origin không tin cậy bằng cookie phiên.
         requireRole(user, CREATORS);
         const title =
             typeof req.body?.title === "string" ? req.body.title.trim() : "";

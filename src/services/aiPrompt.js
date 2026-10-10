@@ -43,6 +43,8 @@ QUY TẮC KHI HƯỚNG DẪN BÀI TẬP:
 `.trim();
 
 export function buildAiSystemInstruction(displayName) {
+    // Tên là dữ liệu cá nhân hóa chứ không phải chỉ thị cho mô hình: chỉ giữ ký tự
+    // chữ/số và dấu câu đơn giản, chuẩn hóa Unicode, rồi giới hạn số ký tự.
     const safeDisplayName =
         typeof displayName === "string"
             ? Array.from(

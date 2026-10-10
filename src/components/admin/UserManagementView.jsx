@@ -22,12 +22,19 @@ const roleLabels = {
 };
 const roles = Object.keys(roleLabels);
 
+// Bộ điều khiển hạn mức AI cho tài khoản quản trị. Các hành động
+// "limited/unlimited/reset/add" đều gọi API nhưng chỉ thay đổi quota của 1 user cụ thể,
+// trong khi đồng hồ đếm ngược và thông báo `resetAt` được cập nhật bằng setInterval để
+// mô phỏng việc làm mới lượt AI theo thời gian thực.
 function AiLimitControls({ userId, usage, onUsageChanged }) {
     const [amount, setAmount] = useState("10");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
 
+    // `apply` đóng vai trò thao tác quota AI: mỗi action (`limited`, `unlimited`,
+    // `reset`, `add`) đều gửi request lên server rồi cập nhật kết quả ở UI. Điều
+    // này đảm bảo trạng thái hiển thị luôn phản ánh quota thực tế sau khi admin thay đổi.
     async function apply(action) {
         setBusy(true);
         setError("");
@@ -144,6 +151,9 @@ function AiLimitControls({ userId, usage, onUsageChanged }) {
     );
 }
 
+// Mỗi hàng tài khoản tách riêng các state cập nhật local (username, displayName, role, lock)
+// khỏi danh sách tổng, nên khi admin mở rộng chi tiết vẫn có thể chỉnh sửa từng trường
+// rồi lưu từng thay đổi mà không làm ảnh hưởng đến các tài khoản khác trong bảng.
 function ManagedUserRow({
     user,
     currentUser,
@@ -273,6 +283,9 @@ function ManagedUserRow({
         }
     }
 
+    // save chỉ gửi những field thực sự thay đổi, tránh ghi đè dữ liệu không cần thiết
+    // khi người dùng mở rộng chi tiết nhưng không sửa gì. Vì quyền thay đổi của admin
+    // và super_admin khác nhau, `changes` được build theo từng điều kiện an toàn.
     async function save(event) {
         event.preventDefault();
         const changes = {};
@@ -542,6 +555,9 @@ function ManagedUserRow({
     );
 }
 
+// Danh sách yêu cầu xóa tài khoản theo dõi trạng thái duyệt và liên kết với quyền root/admin.
+// Mỗi request được resolve bằng API riêng, giúp tách rõ luồng phê duyệt khỏi các thao
+// tác cập nhật thông tin người dùng thông thường.
 function DeletionRequests({ requests, onResolved }) {
     const [busyRequestId, setBusyRequestId] = useState("");
     const [error, setError] = useState("");
@@ -612,6 +628,9 @@ function DeletionRequests({ requests, onResolved }) {
     );
 }
 
+// Trang quản trị người dùng tích hợp quyền hạn theo vai trò, quota AI, khóa tài khoản và
+// phê duyệt xóa. `selected`/`bulk` actions chỉ cho phép thực hiện khi có quyền phù hợp,
+// còn `canChangeCredentials` và `isProtectedRoot` chặn những thay đổi không được phép với root admin.
 export default function UserManagementView({ user, onCurrentUserUpdated }) {
     const [users, setUsers] = useState([]);
     const [deletionRequests, setDeletionRequests] = useState([]);

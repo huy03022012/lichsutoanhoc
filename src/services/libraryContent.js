@@ -3,6 +3,8 @@ import { HttpError } from "./accountAuth.js";
 const LIBRARY_SCHEMA_ERROR =
     "Chưa tạo bảng học liệu bổ sung trong Supabase. Hãy chạy lại supabase/schema.sql trong SQL Editor rồi khởi động lại server.";
 
+// Chỉ nhận diện đúng lỗi bảng học liệu chưa được tạo; lỗi truy vấn khác không bị
+// che thành dữ liệu rỗng vì đó có thể là lỗi vận hành cần xử lý.
 export function isMissingLibraryTableError(error) {
     return (
         ["42P01", "PGRST205"].includes(error?.code) &&
@@ -14,6 +16,8 @@ export function getLibrarySchemaError() {
     return new HttpError(503, LIBRARY_SCHEMA_ERROR);
 }
 
+// Xác thực và chuẩn hóa payload trước khi lưu: giới hạn kích thước trường,
+// kiểm tra URL nguồn chỉ dùng HTTP(S), rồi dựng cùng cấu trúc mà client đọc.
 export function validateLibraryLesson(body) {
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     const tag = typeof body?.tag === "string" ? body.tag.trim() : "";
@@ -72,6 +76,8 @@ export function validateLibraryLesson(body) {
         return { title: sourceTitle, url: parsedUrl.href };
     });
 
+    // sections và key là dạng lưu trữ nội bộ dùng chung với học liệu dựng sẵn;
+    // client chỉ gửi lessonText và không được quyết định cấu trúc JSON tùy ý.
     return {
         title,
         tag,
@@ -94,6 +100,8 @@ export async function loadAdditionalLibraryContent(db) {
         .order("created_at", { ascending: true });
     if (error) {
         if (!isMissingLibraryTableError(error)) throw error;
+        // Cho ứng dụng tiếp tục chạy với nội dung tĩnh trong lúc schema chưa cài,
+        // đồng thời gửi cảnh báo rõ ràng để vận hành biết dữ liệu động đang thiếu.
         console.error("Library content schema is not installed:", error.message);
         return {
             lessons: [],
