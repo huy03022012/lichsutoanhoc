@@ -14,6 +14,7 @@ import deletionRequestsHandler from "../../api/admin/deletion-requests.js";
 import assignmentsHandler from "../../api/assignments.js";
 import libraryHandler from "../../api/library.js";
 import assignmentSubmissionsHandler from "../../api/assignments/[assignmentId]/submissions.js";
+import svgAssetHandler from "../../api/assets/svg.js";
 import {
     getDatabase,
     requireAuthenticatedRequest,
@@ -77,6 +78,8 @@ app.set("trust proxy", process.env.TRUST_PROXY === "1" ? 1 : false);
 app.use(cors({ origin: clientOrigins }));
 // Request chat có thể chứa ảnh base64 3 MB; giới hạn body để chống payload quá lớn.
 app.use(express.json({ limit: "4.2mb" }));
+// SVG giao diện là tài nguyên công khai; đăng ký trước middleware xác thực API.
+app.all("/api/assets/svg", svgAssetHandler);
 app.use("/api", async (req, res, next) => {
     // Để /auth tự xử lý cả GET công khai (trạng thái chưa đăng nhập) lẫn các
     // thao tác có phiên; các route còn lại cần xác thực trước khi vào handler.

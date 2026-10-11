@@ -11,6 +11,7 @@ Website học tập tương tác về lịch sử Toán học, dùng React/Vite 
 - `src/services/api.js`: các yêu cầu API mà frontend gửi lên backend.
 - `src/services/server.js`: API Express khi chạy local hoặc Node server.
 - `api/`: Vercel Functions; Vercel dùng các handler này thay cho Express `app.listen`.
+- `api/assets/svg.js`: endpoint GET trả SVG theo tên và kích thước; file nguồn nằm trong `private/svg/`.
 - `src/services/aiPrompt.js`: giới hạn chủ đề và quy tắc hướng dẫn của AI.
 - `src/services/aiImage.js`: loại ảnh, giới hạn dung lượng và kiểm tra payload gửi tới AI.
 - `src/services/accountAuth.js`: mã hóa mật khẩu, phiên đăng nhập cookie và kiểm tra quyền ở backend.
@@ -28,7 +29,9 @@ Khi sửa một tính năng, thường cần kiểm tra cả giao diện (`src/A
 
 Lịch sử tối đa 10 cuộc trò chuyện được lưu bằng `localStorage` trên trình duyệt hiện tại, nên vẫn còn sau khi đóng rồi mở lại website. Dữ liệu không được gửi lên Vercel và không tự đồng bộ sang trình duyệt/thiết bị khác; người dùng có thể xóa từng cuộc hoặc xóa toàn bộ trong giao diện chat.
 
-Trên màn hình rộng, điều hướng nằm trên thanh đầu trang; trên điện thoại/tablet (màn hình rộng tối đa 850 px), dùng nút ba gạch để mở menu. Menu đóng khi chọn trang, chạm vùng bên ngoài hoặc nhấn Escape.
+Trên màn hình rộng, điều hướng nằm trên thanh đầu trang; ở màn hình 851–1200 px, nhãn tab được thay bằng biểu tượng SVG để giữ tất cả tab trên một hàng (tên vẫn có tooltip và nhãn trợ năng). Trên điện thoại/tablet hẹp tối đa 850 px, dùng nút ba gạch để mở menu chữ. Menu đóng khi chọn trang, chạm vùng bên ngoài hoặc nhấn Escape.
+
+Endpoint SVG công khai hỗ trợ `GET /api/assets/svg?name=home&size=98` hoặc `GET /api/assets/svg?name=home&w=120&h=80`. `name` phải là tên file SVG trong `private/svg/` không gồm phần mở rộng; kích thước hợp lệ từ 1 đến 4096 px. Khi deploy Vercel, cần đưa cả `api/assets/svg.js` và các file SVG cần dùng trong `private/svg/` vào Git; `vercel.json` đã cấu hình đưa các file SVG vào Function bundle. Ký tự `#` trong URL bắt đầu fragment nên không dùng nó thay cho giá trị số thật.
 
 `package.json`, `vercel.json` và `package-lock.json` là JSON; JSON chuẩn không cho phép comment. Vì vậy phần giải thích cấu hình nằm trong mục sơ đồ này: `package.json` định nghĩa scripts/thư viện, `vercel.json` cấu hình build và serverless function, còn `package-lock.json` khóa phiên bản dependency chính xác và được npm tự sinh nên không nên chỉnh tay.
 

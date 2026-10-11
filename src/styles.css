@@ -14,6 +14,7 @@
 /* Quy tắc cơ bản và khung ứng dụng. */
 * {
     box-sizing: border-box;
+    user-select: none;
 }
 body {
     margin: 0;
@@ -68,6 +69,19 @@ button {
     background: color-mix(in srgb, var(--surface) 94%, transparent);
     backdrop-filter: blur(12px);
     z-index: 10;
+}
+.top nav {
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+.top nav button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.top nav .navIcon {
+    display: none;
 }
 .brand {
     display: flex;
@@ -1607,62 +1621,29 @@ hr {
     border-top: 1px solid var(--line);
     margin: 22px 0;
 }
-/* Thu gọn điều hướng trước khi các mục và điều khiển tài khoản bị chèn ép. */
-@media (min-width: 851px) and (max-width: 1100px) {
-    /* Ở tablet ngang, thay các liên kết dày đặc bằng menu thu gọn. */
-    .mobileMenuToggle {
-        position: relative;
-        z-index: 12;
-        display: flex;
-        width: 44px;
-        height: 44px;
-        flex: 0 0 auto;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: var(--surface);
-    }
-    .mobileMenuToggle span {
-        display: block;
-        width: 19px;
-        height: 2px;
-        border-radius: 2px;
-        background: var(--text);
-    }
+/* Thay nhãn dài bằng biểu tượng SVG để các tab không bị xuống dòng ở tablet ngang. */
+@media (min-width: 851px) and (max-width: 1200px) {
     .top nav {
-        display: none;
+        gap: 2px;
     }
-    .top nav.mobileMenuOpen {
-        position: absolute;
-        top: calc(100% + 8px);
-        right: 4%;
-        z-index: 12;
-        display: flex;
-        width: min(300px, 92vw);
-        flex-direction: column;
-        gap: 5px;
-        padding: 10px;
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        background: var(--surface);
-        box-shadow: var(--shadow);
+    .top nav button {
+        width: 42px;
+        height: 42px;
+        flex: 0 0 42px;
+        padding: 8px;
     }
-    .top nav.mobileMenuOpen button {
-        width: 100%;
-        padding: 13px 14px;
-        text-align: left;
-    }
-    .mobileMenuBackdrop {
-        position: fixed;
-        inset: 72px 0 0;
-        z-index: 11;
+    .top nav .navIcon {
         display: block;
-        border: 0;
-        background: transparent;
-        cursor: default;
+        width: 22px;
+        height: 22px;
+    }
+    .top nav .navLabel {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
     }
 }
 /* Điều chỉnh bố cục cho tablet và điện thoại. */

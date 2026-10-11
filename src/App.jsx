@@ -28,6 +28,54 @@ const navItems = [
     ["ai", "AI trợ giảng"],
     ["assignments", "Bài tập"],
 ];
+const navIcons = {
+    home: (
+        <>
+            <path d="m3 10 9-7 9 7" />
+            <path d="M5 9v11h14V9M9 20v-6h6v6" />
+        </>
+    ),
+    library: (
+        <>
+            <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 1 4 17.5z" />
+            <path d="M4 16.5A2.5 2.5 0 0 1 6.5 14H20M8 7h8" />
+        </>
+    ),
+    timeline: (
+        <>
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+        </>
+    ),
+    ai: (
+        <>
+            <path
+                strokeWidth="0.8"
+                d="M19 1.5l.85 1.85 1.85.85-1.85.85L19 6.9l-.85-1.85L16.3 4.2l1.85-.85z"
+            />
+            <path
+                strokeWidth="2"
+                d="M22 12v5M2 12l10-5 10 5-10 5z"
+            />
+            <path
+                strokeWidth="2"
+                d="M6 14v4.5C6 20 8.7 21.5 12 21.5s6-1.5 6-3V14"
+            />
+        </>
+    ),
+    assignments: (
+        <>
+            <path d="M8 4H6a2 2 0 0 0-2 2v14h16V6a2 2 0 0 0-2-2h-2" />
+            <path d="M9 3h6v4H9zM8 12h8M8 16h8" />
+        </>
+    ),
+    users: (
+        <>
+            <circle cx="9" cy="8" r="3" />
+            <path d="M3 20v-1a6 6 0 0 1 12 0v1zM16 5.5a3 3 0 0 1 0 5.8M18 14a5 5 0 0 1 3 4.6v1.4h-4" />
+        </>
+    ),
+};
 // localStorage giữ 10 cuộc chat trên trình duyệt kể cả sau khi đóng website.
 const AI_CHAT_STORAGE_KEY = "mathhistory-ai-conversations-v1";
 // Đọc khóa cũ một lần để không làm mất lịch sử đã lưu trước khi hỗ trợ nhiều cuộc chat.
@@ -1691,6 +1739,9 @@ function App() {
                     {visibleNavItems.map(([id, label]) => (
                         <button
                             key={id}
+                            type="button"
+                            title={label}
+                            aria-label={label}
                             onClick={() => {
                                 setView(id);
                                 // Trên màn hình nhỏ, đóng menu ngay sau khi chọn trang để nhường chỗ nội dung.
@@ -1703,7 +1754,20 @@ function App() {
                                     : ""
                             }
                         >
-                            {label}
+                            <svg
+                                className="navIcon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                                focusable="false"
+                            >
+                                {navIcons[id]}
+                            </svg>
+                            <span className="navLabel">{label}</span>
                         </button>
                     ))}
                 </nav>
